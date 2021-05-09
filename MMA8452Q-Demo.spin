@@ -32,11 +32,16 @@ OBJ
     time  : "time"
     accel : "sensor.accel.3dof.mma8452q.i2c"
 
-PUB Main{}
+PUB Main{} | x, y, z
 
     setup{}
-    ser.hex(accel.deviceid{}, 2)
+    accel.accelopmode(1)
+    ser.dec(accel.accelopmode(-2))
     repeat
+        repeat until accel.acceldataready{}
+        accel.acceldata(@x, @y, @z)
+        ser.position(0, 5)
+        ser.printf3(string("%x  %x  %x"), x, y, z)
 
 PUB Setup{}
 

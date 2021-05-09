@@ -36,15 +36,24 @@ CON
     CAL_G_DR        = 0
     CAL_M_DR        = 0
 
+' Accelerometer operating modes
+    STDBY           = 0
+    ACTIVE          = 1
+
+' Axis-specific constants
+    X_AXIS          = 0
+    Y_AXIS          = 1
+    Z_AXIS          = 2
+    ALL_AXES        = 3
+
 VAR
 
+    long _ares
 
 OBJ
 
-' choose an I2C engine below
     i2c : "com.i2c"                             ' PASM I2C engine (up to ~800kHz)
-'    i2c : "tiny.com.i2c"                        ' SPIN I2C engine (~40kHz)
-    core: "core.con.mma8452q"       ' hw-specific low-level const's
+    core: "core.con.mma8452q"                   ' hw-specific low-level const's
     time: "time"                                ' basic timing functions
 
 PUB Null{}
@@ -75,10 +84,93 @@ PUB Stop{}
 PUB Defaults{}
 ' Set factory defaults
 
+PUB Preset_Active{}
+' Like Defaults(), but enable sensor power, and set scale
+    accelopmode(ACTIVE)
+
+PUB AccelADCRes(adc_res): curr_res
+' dummy method
+
+PUB AccelAxisEnabled(xyz_mask): curr_mask
+' dummy method
+
+PUB AccelBias(bias_x, bias_y, bias_z, rw) | tmp, opmode_orig
+' Read or write/manually set accelerometer calibration offset values
+
+PUB AccelClearInt{}
+' Clear Accelerometer interrupts
+
+PUB AccelData(ptr_x, ptr_y, ptr_z) | tmp[2]
+' Read the Accelerometer output registers
+    readreg(core#OUT_X_MSB, 6, @tmp)
+    long[ptr_x] := ~~tmp.word[X_AXIS] ~> 4      ' output data is 12bit signed,
+    long[ptr_y] := ~~tmp.word[Y_AXIS] ~> 4      '   left-justified; shift it
+    long[ptr_z] := ~~tmp.word[Z_AXIS] ~> 4      '   down to the LSBit
+
+PUB AccelDataOverrun{}: flag
+' Flag indicating previously acquired data has been overwritten
+    readreg(core#STATUS, 1, @flag)
+    return ((flag & core#ZYX_OW) <> 0)
+
+PUB AccelDataRate(rate): curr_rate
+' Set accelerometer output data rate, in Hz
+'   Valid values:
+'   Any other value polls the chip and returns the current setting
+
+PUB AccelDataReady{}: flag
+' Flag indicating new accelerometer data available
+    readreg(core#STATUS, 1, @flag)
+    return ((flag & core#ZYX_DR) <> 0)
+
+PUB AccelG(ptr_x, ptr_y, ptr_z) | tmp[ACCEL_DOF]
+' Read the Accelerometer data and scale the outputs to
+'   micro-g's (1_000_000 = 1.000000 g = 9.8 m/s/s)
+    acceldata(@tmp[X_AXIS], @tmp[Y_AXIS], @tmp[Z_AXIS])
+    long[ptr_x] := tmp[X_AXIS] * _ares
+    long[ptr_y] := tmp[Y_AXIS] * _ares
+    long[ptr_z] := tmp[Z_AXIS] * _ares
+
+PUB AccelInt{}: flag
+' Flag indicating accelerometer interrupt asserted
+
+PUB AccelLowPassFilter(freq): curr_freq
+' Enable accelerometer data low-pass filter
+
+PUB AccelOpMode(mode): curr_mode
+' Set accelerometer operating mode
+'   Valid values:
+'       STDBY (0): stand-by
+'       ACTIVE (1): active
+'   Any other value polls the chip and returns the current setting
+    curr_mode := 0
+    readreg(core#CTRL_REG1, 1, @curr_mode)
+    case mode
+        STDBY, ACTIVE:
+        other:
+            return curr_mode & 1
+
+    mode := ((curr_mode & core#ACTIVE_MASK) | mode)
+    writereg(core#CTRL_REG1, 1, @mode)
+
+PUB AccelScale(scale): curr_scl
+' Set the full-scale range of the accelerometer, in g's
+
+PUB CalibrateAccel{} | acceltmp[ACCEL_DOF], axis, x, y, z, samples, scale_orig, drate_orig, fifo_orig, scl
+' Calibrate the accelerometer
+
 PUB DeviceID{}: id
 ' Read device identification
 '   Returns: $2A
     readreg(core#WHO_AM_I, 1, @id)
+
+PUB IntClear(mask)
+' Clear interrupts, per clear_mask
+
+PUB Interrupt{}: src
+' Indicate interrupt state
+
+PUB IntMask(mask): curr_mask
+' Set interrupt mask
 
 PUB Reset{}
 ' Reset the device
@@ -86,7 +178,8 @@ PUB Reset{}
 PRI readReg(reg_nr, nr_bytes, ptr_buff) | cmd_pkt
 ' Read nr_bytes from the device into ptr_buff
     case reg_nr                                 ' validate register num
-        $00..$FF:
+        core#OUT_X_MSB, core#OUT_Y_MSB, core#OUT_Z_MSB, {
+}       core#STATUS, core#SYSMOD..core#FF_MT_CNT, core#TRANSIENT_CFG..core#OFF_Z:
             cmd_pkt.byte[0] := SLAVE_WR
             cmd_pkt.byte[1] := reg_nr
             i2c.start{}
@@ -101,7 +194,9 @@ PRI readReg(reg_nr, nr_bytes, ptr_buff) | cmd_pkt
 PRI writeReg(reg_nr, nr_bytes, ptr_buff) | cmd_pkt
 ' Write nr_bytes to the device from ptr_buff
     case reg_nr
-        $00..$FF:
+        core#XYZ_DATA_CFG, core#HP_FILT_CUTOFF, core#PL_CFG, core#FF_MT_CFG, {
+}       core#FF_MT_THS, core#FF_MT_CNT, core#TRANSIENT_CFG, {
+}       core#TRANSIENT_THS..core#PULSE_CFG, core#PULSE_THSX..core#OFF_Z:
             cmd_pkt.byte[0] := SLAVE_WR
             cmd_pkt.byte[1] := reg_nr
             i2c.start{}
