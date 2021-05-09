@@ -83,6 +83,7 @@ PUB Stop{}
 
 PUB Defaults{}
 ' Set factory defaults
+    reset{}
 
 PUB Preset_Active{}
 ' Like Defaults(), but enable sensor power, and set scale
@@ -172,8 +173,10 @@ PUB Interrupt{}: src
 PUB IntMask(mask): curr_mask
 ' Set interrupt mask
 
-PUB Reset{}
+PUB Reset{} | tmp
 ' Reset the device
+    tmp := core#RESET
+    writereg(core#CTRL_REG2, 1, @tmp)
 
 PRI readReg(reg_nr, nr_bytes, ptr_buff) | cmd_pkt
 ' Read nr_bytes from the device into ptr_buff
