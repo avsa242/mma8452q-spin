@@ -41,7 +41,15 @@ CON
     SYSMOD              = $0B
     INT_SOURCE          = $0C
     WHO_AM_I            = $0D
+
     XYZ_DATA_CFG        = $0E
+    XYZ_DATA_CFG_MASK   = $13
+        HPF_OUT         = 4
+        FS              = 0
+        FS_BITS         = %11
+        HPF_OUT_MASK    = (1 << HPF_OUT) ^ XYZ_DATA_CFG_MASK
+        FS_MASK         = FS_BITS ^ XYZ_DATA_CFG_MASK
+
     HP_FILT_CUTOFF      = $0F
     PL_STATUS           = $10
     PL_CFG              = $11

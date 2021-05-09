@@ -41,9 +41,9 @@ CON
     ACTIVE          = 1
 
 ' Axis-specific constants
-    X_AXIS          = 0
+    X_AXIS          = 2
     Y_AXIS          = 1
-    Z_AXIS          = 2
+    Z_AXIS          = 0
     ALL_AXES        = 3
 
 VAR
@@ -153,8 +153,27 @@ PUB AccelOpMode(mode): curr_mode
     mode := ((curr_mode & core#ACTIVE_MASK) | mode)
     writereg(core#CTRL_REG1, 1, @mode)
 
-PUB AccelScale(scale): curr_scl
+PUB AccelScale(scale): curr_scl | opmode_orig
 ' Set the full-scale range of the accelerometer, in g's
+    curr_scl := 0
+    readreg(core#XYZ_DATA_CFG, 1, @curr_scl)
+    case scale
+        2, 4, 8:
+            scale := lookdownz(scale: 2, 4, 8)
+            ' _ares = 1 / 1024 counts/g (2g), 512 (4g), or 256 (8g)
+            _ares := lookupz(scale: 0_000976, 0_001953, 0_003906)
+        other:
+            curr_scl &= core#FS_BITS
+            return lookupz(curr_scl: 2, 4, 8)
+
+    scale := ((curr_scl & core#FS_MASK) | scale)
+    opmode_orig := accelopmode(-2)
+    accelopmode(STDBY)                          ' must be in standby to change
+
+    writereg(core#XYZ_DATA_CFG, 1, @scale)
+
+    if opmode_orig == ACTIVE                    ' restore opmode, if applicable
+        accelopmode(ACTIVE)
 
 PUB CalibrateAccel{} | acceltmp[ACCEL_DOF], axis, x, y, z, samples, scale_orig, drate_orig, fifo_orig, scl
 ' Calibrate the accelerometer
@@ -177,6 +196,7 @@ PUB Reset{} | tmp
 ' Reset the device
     tmp := core#RESET
     writereg(core#CTRL_REG2, 1, @tmp)
+    time.usleep(core#T_POR)                     ' wait for device to come back
 
 PRI readReg(reg_nr, nr_bytes, ptr_buff) | cmd_pkt
 ' Read nr_bytes from the device into ptr_buff
