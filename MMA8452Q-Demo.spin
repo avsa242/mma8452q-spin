@@ -4,8 +4,8 @@
     Author: Jesse Burt
     Description: Demo of the MMA8452Q driver
     Copyright (c) 2021
-    Started May 09, 2021
-    Updated May 09, 2021
+    Started Aug 12, 2017
+    Updated Apr 29, 2021
     See end of file for terms of use.
     --------------------------------------------
 }
@@ -15,33 +15,86 @@ CON
     _clkmode    = cfg#_clkmode
     _xinfreq    = cfg#_xinfreq
 
-' -- User-defined constants
+' -- User-modifiable constants
     LED         = cfg#LED1
     SER_BAUD    = 115_200
 
     SCL_PIN     = 28
     SDA_PIN     = 29
     I2C_HZ      = 400_000                       ' max is 400_000
-
 ' --
+
+    DAT_X_COL   = 20
+    DAT_Y_COL   = DAT_X_COL + 15
+    DAT_Z_COL   = DAT_Y_COL + 15
 
 OBJ
 
-    cfg   : "core.con.boardcfg.flip"
-    ser   : "com.serial.terminal.ansi"
-    time  : "time"
-    accel : "sensor.accel.3dof.mma8452q.i2c"
+    cfg     : "core.con.boardcfg.flip"
+    ser     : "com.serial.terminal.ansi"
+    time    : "time"
+    int     : "string.integer"
+    accel   : "sensor.accel.3dof.mma8452q.i2c"
 
-PUB Main{} | x, y, z
+PUB Main{}
 
     setup{}
-    accel.accelopmode(1)
-    ser.dec(accel.accelopmode(-2))
+    accel.preset_active{}
+    accel.accelscale(2)
     repeat
-        repeat until accel.acceldataready{}
-        accel.acceldata(@x, @y, @z)
-        ser.position(0, 5)
-        ser.printf3(string("%x  %x  %x"), x, y, z)
+        ser.position(0, 3)
+        accelcalc{}
+
+        if ser.rxcheck{} == "c"                 ' press the 'c' key in the demo
+            calibrate{}                         ' to calibrate sensor offsets
+
+PUB AccelCalc{} | ax, ay, az
+
+    repeat until accel.acceldataready{}         ' wait for new sensor data set
+    accel.accelg(@ax, @ay, @az)                 ' read calculated sensor data
+    ser.str(string("Accel (g):"))
+    ser.positionx(DAT_X_COL)
+    decimal(ax, 1000000)                        ' data is in micro-g's; display
+    ser.positionx(DAT_Y_COL)                    ' it as if it were a float
+    decimal(ay, 1000000)
+    ser.positionx(DAT_Z_COL)
+    decimal(az, 1000000)
+    ser.clearline{}
+    ser.newline{}
+
+PUB Calibrate{}
+
+    ser.position(0, 7)
+    ser.str(string("Calibrating..."))
+    accel.calibrateaccel{}
+    ser.positionx(0)
+    ser.clearline{}
+
+PRI Decimal(scaled, divisor) | whole[4], part[4], places, tmp, sign
+' Display a scaled up number as a decimal
+'   Scale it back down by divisor (e.g., 10, 100, 1000, etc)
+    whole := scaled / divisor
+    tmp := divisor
+    places := 0
+    part := 0
+    sign := 0
+    if scaled < 0
+        sign := "-"
+    else
+        sign := " "
+
+    repeat
+        tmp /= 10
+        places++
+    until tmp == 1
+    scaled //= divisor
+    part := int.deczeroed(||(scaled), places)
+
+    ser.char(sign)
+    ser.dec(||(whole))
+    ser.char(".")
+    ser.str(part)
+    ser.chars(" ", 5)
 
 PUB Setup{}
 
@@ -49,11 +102,13 @@ PUB Setup{}
     time.msleep(30)
     ser.clear{}
     ser.strln(string("Serial terminal started"))
-
     if accel.startx(SCL_PIN, SDA_PIN, I2C_HZ)
-        ser.strln(string("MMA8452Q terminal started"))
+        ser.strln(string("MMA8452Q driver started (I2C)"))
     else
-        ser.strln(string("MMA8452Q terminal failed to start - halting"))
+        ser.strln(string("MMA8452Q driver failed to start - halting"))
+        accel.stop{}
+        time.msleep(5)
+        ser.stop{}
         repeat
 
 DAT
