@@ -28,6 +28,9 @@ CON
     BARO_DOF        = 0
     DOF             = ACCEL_DOF + GYRO_DOF + MAG_DOF + BARO_DOF
 
+    R               = 0
+    W               = 1
+
 ' Scales and data rates used during calibration/bias/offset process
     CAL_XL_SCL      = 2
     CAL_G_SCL       = 0
@@ -55,6 +58,7 @@ CON
 VAR
 
     long _ares
+    long _abiasraw[ACCEL_DOF]
 
 OBJ
 
@@ -105,6 +109,44 @@ PUB AccelAxisEnabled(xyz_mask): curr_mask
 
 PUB AccelBias(bias_x, bias_y, bias_z, rw) | tmp, opmode_orig
 ' Read or write/manually set accelerometer calibration offset values
+'   Valid values:
+'       rw:
+'           R (0), W (1)
+'       bias_x, bias_y, bias_z:
+'           -128..127
+'   NOTE: When rw is set to READ, bias_x, bias_y and bias_z must be pointers
+'       to respective variables to hold the returned calibration offset values
+    case rw
+        R:
+            readreg(core#OFF_X, 3, @tmp)
+            _abiasraw[X_AXIS] := long[bias_x] := ~tmp.byte[X_AXIS]
+            _abiasraw[Y_AXIS] := long[bias_y] := ~tmp.byte[Y_AXIS]
+            _abiasraw[Z_AXIS] := long[bias_z] := ~tmp.byte[Z_AXIS]
+            return
+        W:
+            case bias_x
+                -128..127:
+                    _abiasraw[X_AXIS] := bias_x
+                other:
+                    return
+            case bias_y
+                -128..127:
+                    _abiasraw[Y_AXIS] := bias_y
+                other:
+                    return
+            case bias_z
+                -128..127:
+                    _abiasraw[Z_AXIS] := bias_z
+                other:
+                    return
+            opmode_orig := accelopmode(-2)
+            if opmode_orig <> STDBY
+                accelopmode(STDBY)
+            writereg(core#OFF_X, 1, @_abiasraw[X_AXIS])
+            writereg(core#OFF_Y, 1, @_abiasraw[Y_AXIS])
+            writereg(core#OFF_Z, 1, @_abiasraw[Z_AXIS])
+            if opmode_orig <> STDBY
+                accelopmode(opmode_orig)
 
 PUB AccelClearInt{}
 ' Clear Accelerometer interrupts
