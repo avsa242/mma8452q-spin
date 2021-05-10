@@ -4,8 +4,8 @@
     Author: Jesse Burt
     Description: Demo of the MMA8452Q driver
     Copyright (c) 2021
-    Started Aug 12, 2017
-    Updated Apr 29, 2021
+    Started May 09, 2021
+    Updated May 10, 2021
     See end of file for terms of use.
     --------------------------------------------
 }
@@ -41,6 +41,7 @@ PUB Main{}
     setup{}
     accel.preset_active{}
     accel.accelscale(2)
+    accel.acceldatarate(50)
     repeat
         ser.position(0, 3)
         accelcalc{}

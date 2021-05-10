@@ -5,7 +5,7 @@
     Description: Driver for the MMA8452Q 3DoF accelerometer
     Copyright (c) 2021
     Started May 09, 2021
-    Updated May 09, 2021
+    Updated May 10, 2021
     See end of file for terms of use.
     --------------------------------------------
 }
@@ -113,10 +113,29 @@ PUB AccelDataOverrun{}: flag
     readreg(core#STATUS, 1, @flag)
     return ((flag & core#ZYX_OW) <> 0)
 
-PUB AccelDataRate(rate): curr_rate
+PUB AccelDataRate(rate): curr_rate | opmode_orig
 ' Set accelerometer output data rate, in Hz
 '   Valid values:
+'       1 (1.56), 6 (6.25), 12 (12.5), 50, 100, 200, 400, 800
 '   Any other value polls the chip and returns the current setting
+    curr_rate := 0
+    readreg(core#CTRL_REG1, 1, @curr_rate)
+    case rate
+        1, 6, 12, 50, 100, 200, 400, 800:
+            rate := lookdownz(rate: 800, 400, 200, 100, 50, 12, 6, 1) << core#DR
+        other:
+            curr_rate := (curr_rate >> core#DR) & core#DR_BITS
+            return lookupz(curr_rate: 800, 400, 200, 100, 50, 12, 6, 1)
+
+    rate := ((curr_rate & core#DR_MASK) | rate)
+    opmode_orig := accelopmode(-2)
+    if opmode_orig <> STDBY
+        accelopmode(STDBY)
+
+    writereg(core#CTRL_REG1, 1, @rate)
+
+    if opmode_orig <> STDBY
+        accelopmode(opmode_orig)
 
 PUB AccelDataReady{}: flag
 ' Flag indicating new accelerometer data available
