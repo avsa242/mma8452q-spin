@@ -40,6 +40,12 @@ CON
     STDBY           = 0
     ACTIVE          = 1
 
+' Accelerometer power modes
+    NORMAL          = 0
+    LONOISE_LOPWR   = 1
+    HIGHRES         = 2
+    LOPWR           = 3
+
 ' Axis-specific constants
     X_AXIS          = 2
     Y_AXIS          = 1
@@ -173,6 +179,33 @@ PUB AccelOpMode(mode): curr_mode
 
     mode := ((curr_mode & core#ACTIVE_MASK) | mode)
     writereg(core#CTRL_REG1, 1, @mode)
+
+PUB AccelPowerMode(mode): curr_mode | opmode_orig ' XXX tentatively named
+' Set accelerometer power mode/oversampling mode
+'   Valid values:
+'       NORMAL (0): Normal
+'       LONOISE_LOPWR (1): Low noise low power
+'       HIGHRES (2): High resolution
+'       LOPWR (3): Low power
+'   Any other value polls the chip and returns the current setting
+    curr_mode := 0
+    readreg(core#CTRL_REG2, 1, @curr_mode)
+    case mode
+        NORMAL, LONOISE_LOPWR, HIGHRES, LOPWR:
+        other:
+            return curr_mode & core#MODS_BITS
+
+    mode := ((curr_mode & core#MODS_MASK) | mode)
+
+    opmode_orig := accelopmode(-2)
+
+    if opmode_orig <> STDBY
+        accelopmode(STDBY)
+
+    writereg(core#CTRL_REG2, 1, @mode)
+
+    if opmode_orig <> STDBY
+        accelopmode(opmode_orig)
 
 PUB AccelScale(scale): curr_scl | opmode_orig
 ' Set the full-scale range of the accelerometer, in g's
