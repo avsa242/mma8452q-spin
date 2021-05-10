@@ -116,6 +116,7 @@ PUB AccelBias(bias_x, bias_y, bias_z, rw) | tmp, opmode_orig
 '           -128..127
 '   NOTE: When rw is set to READ, bias_x, bias_y and bias_z must be pointers
 '       to respective variables to hold the returned calibration offset values
+    tmp := opmode_orig := 0
     case rw
         R:
             readreg(core#OFF_X, 3, @tmp)
@@ -142,9 +143,11 @@ PUB AccelBias(bias_x, bias_y, bias_z, rw) | tmp, opmode_orig
             opmode_orig := accelopmode(-2)
             if opmode_orig <> STDBY
                 accelopmode(STDBY)
+
             writereg(core#OFF_X, 1, @_abiasraw[X_AXIS])
             writereg(core#OFF_Y, 1, @_abiasraw[Y_AXIS])
             writereg(core#OFF_Z, 1, @_abiasraw[Z_AXIS])
+
             if opmode_orig <> STDBY
                 accelopmode(opmode_orig)
 
@@ -271,8 +274,33 @@ PUB AccelScale(scale): curr_scl | opmode_orig
     if opmode_orig == ACTIVE                    ' restore opmode, if applicable
         accelopmode(ACTIVE)
 
-PUB CalibrateAccel{} | acceltmp[ACCEL_DOF], axis, x, y, z, samples, scale_orig, drate_orig, fifo_orig, scl
+PUB CalibrateAccel{} | acceltmp[ACCEL_DOF], axis, x, y, z, samples, scale_orig, drate_orig
 ' Calibrate the accelerometer
+    longfill(@acceltmp, 0, ACCEL_DOF+7)         ' init variables to 0
+    drate_orig := acceldatarate(-2)             ' store user-set data rate
+    scale_orig := accelscale(-2)                '   and scale
+
+    accelbias(0, 0, 0, W)                       ' clear existing bias offsets
+
+    acceldatarate(CAL_XL_DR)                    ' set data rate and scale to
+    accelscale(CAL_XL_SCL)                      '   device-specific settings
+    samples := CAL_XL_DR                        ' samples = DR for approx 1sec
+                                                '   worth of data
+    repeat samples
+        acceldata(@x, @y, @z)                   ' throw out first set of samples
+
+    repeat samples
+        acceldata(@x, @y, @z)                   ' accumulate samples to be
+        acceltmp[X_AXIS] -= x                   '   averaged
+        acceltmp[Y_AXIS] -= y
+        acceltmp[Z_AXIS] -= z - (1_000_000 / _ares)
+
+    ' write the updated offsets
+    accelbias(acceltmp[X_AXIS] / samples, acceltmp[Y_AXIS] / samples, {
+}   acceltmp[Z_AXIS] / samples, W)
+
+    acceldatarate(drate_orig)                   ' restore user settings
+    accelscale(scale_orig)
 
 PUB DeviceID{}: id
 ' Read device identification

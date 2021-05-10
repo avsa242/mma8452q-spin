@@ -66,7 +66,7 @@ PUB AccelCalc{} | ax, ay, az
 
 PUB Calibrate{}
 
-    ser.position(0, 7)
+    ser.position(0, 5)
     ser.str(string("Calibrating..."))
     accel.calibrateaccel{}
     ser.positionx(0)
