@@ -39,9 +39,10 @@ OBJ
 PUB Main{}
 
     setup{}
-    accel.preset_active{}
-    accel.accelscale(2)
-    accel.acceldatarate(50)
+    accel.preset_active{}                       ' default settings, but enable
+                                                ' sensor power, and set
+                                                ' scale factors
+
     repeat
         ser.position(0, 3)
         accelcalc{}

@@ -87,7 +87,9 @@ PUB Defaults{}
 
 PUB Preset_Active{}
 ' Like Defaults(), but enable sensor power, and set scale
+    reset{}
     accelopmode(ACTIVE)
+    accelscale(2)
 
 PUB AccelADCRes(adc_res): curr_res
 ' dummy method
