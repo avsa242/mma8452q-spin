@@ -5,7 +5,7 @@
     Description: Low-level constants
     Copyright (c) 2021
     Started May 9, 2021
-    Updated May 9, 2021
+    Updated May 11, 2021
     See end of file for terms of use.
     --------------------------------------------
 }
@@ -51,8 +51,29 @@ CON
         FS_MASK         = FS_BITS ^ XYZ_DATA_CFG_MASK
 
     HP_FILT_CUTOFF      = $0F
+
     PL_STATUS           = $10
+    PL_STATUS_MASK      = $C7
+        NEWLP           = 7
+        LO              = 6
+        LAPO            = 1
+        BAFRO           = 0
+        LAPO_BITS       = %11
+        LAPOBAFRO_BITS  = %111
+        PORT_UP         = %00
+        PORT_DN         = %01
+        LAND_RT         = %10
+        LAND_LT         = %11
+        FRONT           = %0
+        BACK            = %1
+
     PL_CFG              = $11
+    PL_CFG_MASK         = $C0
+        DBCNTM          = 7
+        PL_EN           = 6
+        DBCNTM_MASK     = (1 << DBCNTM) ^ PL_CFG_MASK
+        PL_EN_MASK      = 1 ^ PL_CFG_MASK
+
     PL_COUNT            = $12
     PL_BF_ZCOMP         = $13
     P_L_THS_REG         = $14

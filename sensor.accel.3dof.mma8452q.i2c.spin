@@ -260,6 +260,7 @@ PUB AccelScale(scale): curr_scl | opmode_orig
         2, 4, 8:
             scale := lookdownz(scale: 2, 4, 8)
             ' _ares = 1 / 1024 counts/g (2g), 512 (4g), or 256 (8g)
+            ' micro-gs per LSB
             _ares := lookupz(scale: 0_000976, 0_001953, 0_003906)
         other:
             curr_scl &= core#FS_BITS
@@ -315,6 +316,38 @@ PUB Interrupt{}: src
 
 PUB IntMask(mask): curr_mask
 ' Set interrupt mask
+
+PUB Orientation{}: curr_or
+' Current orientation
+'   Returns:
+'       %000: portrait-up, front-facing
+'       %001: portrait-up, back-facing
+'       %010: portrait-down, front-facing
+'       %011: portrait-down, back-facing
+'       %100: landscape-right, front-facing
+'       %101: landscape-right, back-facing
+'       %110: landscape-left, front-facing
+'       %111: landscape-left, back-facing
+    curr_or := 0
+    readreg(core#PL_STATUS, 1, @curr_or)
+    return (curr_or & core#LAPOBAFRO_BITS)
+
+PUB OrientDetect(state): curr_state
+' Enable orientation detection
+'   Valid values: TRUE (-1 or 1), FALSE (0)
+'   Any other value polls the chip and returns the current setting
+    curr_state := 0
+    readreg(core#PL_CFG, 1, @curr_state)
+    case ||(state)
+        0, 1:
+            state := ||(state) << core#PL_EN
+        other:
+            return ((curr_state >> core#PL_EN) & 1) == 1
+
+    state := ((curr_state & core#PL_EN_MASK) | state)
+    accelopmode(STDBY)
+    writereg(core#PL_CFG, 1, @state)
+    accelopmode(ACTIVE)
 
 PUB Reset{} | tmp
 ' Reset the device
