@@ -132,6 +132,8 @@ CON
     CTRL_REG4_MASK      = $BD
 
     CTRL_REG5           = $2E
+    CTRL_REG5_MASK      = $BD
+
     OFF_X               = $2F
     OFF_Y               = $30
     OFF_Z               = $31

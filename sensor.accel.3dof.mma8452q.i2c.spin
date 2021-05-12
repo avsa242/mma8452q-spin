@@ -350,6 +350,38 @@ PUB IntMask(mask): curr_mask | opmode_orig
             readreg(core#CTRL_REG4, 1, @curr_mask)
             return
 
+PUB IntRouting(mask): curr_mask | opmode_orig
+' Set routing of interrupt sources to INT1 or INT2 pin
+'   Valid values:
+'       Setting a bit routes the interrupt to INT1
+'       Clearing a bit routes the interrupt to INT2
+'
+'       Bits [7..0] (OR together symbols, as needed)
+'       7: INT_AUTOSLPWAKE - Auto-sleep/wake
+'       6: NOT USED (will be masked off to 0)
+'       5: INT_TRANS - Transient
+'       4: INT_ORIENT - Orientation (landscape/portrait)
+'       3: INT_PULSE - Pulse detection
+'       2: INT_FFALL - Freefall/motion
+'       1: NOT USED (will be masked off to 0)
+'       0: INT_DRDY - Data ready
+'   Any other value polls the chip and returns the current setting
+    case mask
+        %00000000..%10111101:
+            mask &= core#CTRL_REG5_MASK
+            opmode_orig := accelopmode(-2)
+            if opmode_orig <> STDBY
+                accelopmode(STDBY)
+
+            writereg(core#CTRL_REG5, 1, @mask)
+
+            if opmode_orig <> STDBY
+                accelopmode(opmode_orig)
+        other:
+            readreg(core#CTRL_REG5, 1, @curr_mask)
+            return
+
+
 PUB Orientation{}: curr_or
 ' Current orientation
 '   Returns:
