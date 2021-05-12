@@ -5,7 +5,7 @@
     Description: Driver for the MMA8452Q 3DoF accelerometer
     Copyright (c) 2021
     Started May 09, 2021
-    Updated May 10, 2021
+    Updated May 12, 2021
     See end of file for terms of use.
     --------------------------------------------
 }
@@ -48,6 +48,14 @@ CON
     LONOISE_LOPWR   = 1
     HIGHRES         = 2
     LOPWR           = 3
+
+' Interrupt sources
+    INT_AUTOSLPWAKE = 1 << 7
+    INT_TRANS       = 1 << 5
+    INT_ORIENT      = 1 << 4
+    INT_PULSE       = 1 << 3
+    INT_FFALL       = 1 << 2
+    INT_DRDY        = 1
 
 ' Axis-specific constants
     X_AXIS          = 2
@@ -314,8 +322,33 @@ PUB IntClear(mask)
 PUB Interrupt{}: src
 ' Indicate interrupt state
 
-PUB IntMask(mask): curr_mask
+PUB IntMask(mask): curr_mask | opmode_orig
 ' Set interrupt mask
+'   Valid values:
+'       Bits [7..0] (OR together symbols, as needed)
+'       7: INT_AUTOSLPWAKE - Auto-sleep/wake
+'       6: NOT USED (will be masked off to 0)
+'       5: INT_TRANS - Transient
+'       4: INT_ORIENT - Orientation (landscape/portrait)
+'       3: INT_PULSE - Pulse detection
+'       2: INT_FFALL - Freefall/motion
+'       1: NOT USED (will be masked off to 0)
+'       0: INT_DRDY - Data ready
+'   Any other value polls the chip and returns the current setting
+    case mask
+        %00000000..%10111101:
+            mask &= core#CTRL_REG4_MASK
+            opmode_orig := accelopmode(-2)
+            if opmode_orig <> STDBY
+                accelopmode(STDBY)
+
+            writereg(core#CTRL_REG4, 1, @mask)
+
+            if opmode_orig <> STDBY
+                accelopmode(opmode_orig)
+        other:
+            readreg(core#CTRL_REG4, 1, @curr_mask)
+            return
 
 PUB Orientation{}: curr_or
 ' Current orientation

@@ -5,7 +5,7 @@
     Description: Low-level constants
     Copyright (c) 2021
     Started May 9, 2021
-    Updated May 11, 2021
+    Updated May 12, 2021
     See end of file for terms of use.
     --------------------------------------------
 }
@@ -127,7 +127,10 @@ CON
         RESET           = 1 << RST
 
     CTRL_REG3           = $2C
+
     CTRL_REG4           = $2D
+    CTRL_REG4_MASK      = $BD
+
     CTRL_REG5           = $2E
     OFF_X               = $2F
     OFF_Y               = $30
