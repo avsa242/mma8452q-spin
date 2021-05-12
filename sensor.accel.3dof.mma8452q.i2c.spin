@@ -320,7 +320,18 @@ PUB IntClear(mask)
 ' Clear interrupts, per clear_mask
 
 PUB Interrupt{}: src
-' Indicate interrupt state
+' Flag indicating one or more interrupts asserted
+'   Interrupt flags:
+'       Bits [7..0] (OR together symbols, as needed)
+'       7: INT_AUTOSLPWAKE - Auto-sleep/wake
+'       6: NOT USED (will be masked off to 0)
+'       5: INT_TRANS - Transient
+'       4: INT_ORIENT - Orientation (landscape/portrait)
+'       3: INT_PULSE - Pulse detection
+'       2: INT_FFALL - Freefall/motion
+'       1: NOT USED (will be masked off to 0)
+'       0: INT_DRDY - Data ready
+    readreg(core#INT_SOURCE, 1, @src)
 
 PUB IntMask(mask): curr_mask | opmode_orig
 ' Set interrupt mask
