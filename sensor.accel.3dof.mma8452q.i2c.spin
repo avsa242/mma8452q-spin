@@ -73,6 +73,10 @@ CON
     LANDLT_FR       = %110
     LANDLT_BK       = %111
 
+' Low noise modes
+'   NORMAL          = 0
+    LOWNOISE        = 1
+
 VAR
 
     long _ares
@@ -223,6 +227,33 @@ PUB AccelG(ptr_x, ptr_y, ptr_z) | tmp[ACCEL_DOF]
 
 PUB AccelInt{}: flag
 ' Flag indicating accelerometer interrupt asserted
+
+PUB AccelLowNoiseMode(mode): curr_mode | opmode_orig    'XXX tentatively named
+' Set accelerometer low noise mode
+'   Valid values:
+'       NORMAL (0), LOWNOISE (1)
+'   Any other value polls the chip and returns the current setting
+'   NOTE: When mode is LOWNOISE, range is limited to +/- 4g
+'       This also affects set interrupt thresholds
+'       (i.e., values outside 4g would never be reached)
+    curr_mode := 0
+    readreg(core#CTRL_REG1, 1, @curr_mode)
+    case mode
+        0, 1:
+            mode <<= core#LNOISE
+        other:
+            return ((curr_mode >> core#LNOISE) & 1)
+
+    opmode_orig := accelopmode(-2)
+
+    if opmode_orig <> STDBY
+        accelopmode(STDBY)
+
+    mode := ((curr_mode & core#LNOISE_MASK) | mode)
+    writereg(core#CTRL_REG1, 1, @mode)
+
+    if opmode_orig <> STDBY
+        accelopmode(opmode_orig)
 
 PUB AccelLowPassFilter(freq): curr_freq
 ' Enable accelerometer data low-pass filter
