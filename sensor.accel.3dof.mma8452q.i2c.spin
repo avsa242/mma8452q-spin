@@ -5,7 +5,7 @@
     Description: Driver for the MMA8452Q 3DoF accelerometer
     Copyright (c) 2021
     Started May 09, 2021
-    Updated May 12, 2021
+    Updated Aug 8, 2021
     See end of file for terms of use.
     --------------------------------------------
 }
@@ -296,9 +296,11 @@ PUB CalibrateAccel{} | acceltmp[ACCEL_DOF], axis, x, y, z, samples, scale_orig, 
     samples := CAL_XL_DR                        ' samples = DR for approx 1sec
                                                 '   worth of data
     repeat samples
+        repeat until acceldataready{}
         acceldata(@x, @y, @z)                   ' throw out first set of samples
 
     repeat samples
+        repeat until acceldataready{}
         acceldata(@x, @y, @z)                   ' accumulate samples to be
         acceltmp[X_AXIS] -= x                   '   averaged
         acceltmp[Y_AXIS] -= y
