@@ -285,7 +285,7 @@ PUB AccelScale(scale): curr_scl | opmode_orig
 
 PUB CalibrateAccel{} | acceltmp[ACCEL_DOF], axis, x, y, z, samples, scale_orig, drate_orig
 ' Calibrate the accelerometer
-    longfill(@acceltmp, 0, ACCEL_DOF+7)         ' init variables to 0
+    longfill(@acceltmp, 0, 10)                  ' init variables to 0
     drate_orig := acceldatarate(-2)             ' store user-set data rate
     scale_orig := accelscale(-2)                '   and scale
 
@@ -391,7 +391,6 @@ PUB IntRouting(mask): curr_mask | opmode_orig
         other:
             readreg(core#CTRL_REG5, 1, @curr_mask)
             return
-
 
 PUB Orientation{}: curr_or
 ' Current orientation
