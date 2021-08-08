@@ -354,6 +354,163 @@ PUB CalibrateAccel{} | acceltmp[ACCEL_DOF], axis, x, y, z, samples, scale_orig, 
     acceldatarate(drate_orig)                   ' restore user settings
     accelscale(scale_orig)
 
+PUB ClickAxisEnabled(mask): curr_mask
+' Enable click detection per axis, and per click type
+'   Valid values:
+'       Bits: 5..0
+'       [5..4]: Z-axis double-click..single-click
+'       [3..2]: Y-axis double-click..single-click
+'       [1..0]: X-axis double-click..single-click
+'   Any other value polls the chip and returns the current setting
+    curr_mask := 0
+    readreg(core#PULSE_CFG, 1, @curr_mask)
+    case mask
+        %000000..%111111:
+        other:
+            return curr_mask & core#PEFE_BITS
+
+    mask := ((curr_mask & core#PEFE_MASK) | mask)
+    writereg(core#PULSE_CFG, 1, @mask)
+
+pUB Clicked{}: flag
+' Flag indicating the sensor was single or double-clicked
+'   Returns: TRUE (-1) if sensor was single-clicked or double-clicked
+'            FALSE (0) otherwise
+    return (((clickedint{} >> core#EA) & 1) <> 0)
+
+PUB ClickedInt{}: status
+' Clicked interrupt status
+'   Bits: 7..0
+'       7: Interrupt active
+'       6: Z-axis clicked
+'       5: Y-axis clicked
+'       4: X-axis clicked
+'       3: Double-click on first event
+'       2: Z-axis polarity (0: positive, 1: negative)
+'       1: Y-axis polarity (0: positive, 1: negative)
+'       0: X-axis polarity (0: positive, 1: negative)
+    readreg(core#PULSE_SRC, 1, @status)
+
+PUB ClickIntEnabled(state): curr_state
+' Enable click interrupts on INT1
+'   Valid values: TRUE (-1 or 1), FALSE (0)
+'   Any other value polls the chip and returns the current setting
+    readreg(core#CTRL_REG4, 1, @curr_state)
+    case ||(state)
+        0, 1:
+            state := ||(state) << core#INT_EN_PULSE
+        other:
+            return ((curr_state >> core#INT_EN_PULSE) == 1)
+
+    state := ((curr_state & core#IE_PULSE_MASK) | state)
+    writereg(core#CTRL_REG4, 1, @state)
+
+PUB ClickLatency(ltime): curr_ltime
+'   Set minimum elapsed time from detection of first click to recognition of
+'       any subsequent clicks (single or double). All clicks *during* this time
+'       will be ignored.
+'   Valid values:
+'           XXX TBD
+'   Any other value polls the chip and returns the current setting
+'   NOTE: Minimum unit is dependent on the current output data rate (AccelDataRate)
+    case ltime
+        0..255: ' XXX rewrite with time units
+            writereg(core#PULSE_LTCY, 1, @ltime)
+        other:
+            return curr_ltime
+
+PUB ClickThresh(thresh): curr_thresh
+' Set threshold for recognizing a click (all axes), in micro-g's
+'   Valid values:
+'       0..8_000000 (8g's)
+'   NOTE: The allowed range is fixed at 8g's, regardless of the current
+'       setting of AccelScale()
+'   NOTE: If AccelLowNoiseMode() is set to LOWNOISE, the maximum threshold
+'       recognized using this method will be 4_000000 (4g's)
+    case thresh
+        0..8_000000:
+            clickthreshx(thresh)
+            clickthreshy(thresh)
+            clickthreshz(thresh)
+        other:
+            return
+
+PUB ClickThreshX(thresh): curr_thresh
+' Set threshold for recognizing a click (X-axis), in micro-g's
+'   Valid values:
+'       0..8_000000 (8g's)
+'   Any other value polls the chip and returns the current setting
+'   NOTE: The allowed range is fixed at 8g's, regardless of the current
+'       setting of AccelScale()
+'   NOTE: If AccelLowNoiseMode() is set to LOWNOISE, the maximum threshold
+'       recognized using this method will be 4_000000 (4g's)
+    case thresh
+        0..8_000000:
+            thresh /= 0_063000
+            writereg(core#PULSE_THSX, 1, @thresh)
+        other:
+            readreg(core#PULSE_THSX, 1, @curr_thresh)
+            return curr_thresh * 0_063000       ' scale to 1..8_000000 (8g's)
+
+PUB ClickThreshY(thresh): curr_thresh
+' Set threshold for recognizing a click (Y-axis), in micro-g's
+'   Valid values:
+'       0..8_000000 (8g's)
+'   Any other value polls the chip and returns the current setting
+'   NOTE: The allowed range is fixed at 8g's, regardless of the current
+'       setting of AccelScale()
+'   NOTE: If AccelLowNoiseMode() is set to LOWNOISE, the maximum threshold
+'       recognized using this method will be 4_000000 (4g's)
+    case thresh
+        0..8_000000:
+            thresh /= 0_063000
+            writereg(core#PULSE_THSY, 1, @thresh)
+        other:
+            readreg(core#PULSE_THSY, 1, @curr_thresh)
+            return curr_thresh * 0_063000       ' scale to 1..8_000000 (8g's)
+
+PUB ClickThreshZ(thresh): curr_thresh
+' Set threshold for recognizing a click (Z-axis), in micro-g's
+'   Valid values:
+'       0..8_000000 (8g's)
+'   Any other value polls the chip and returns the current setting
+'   NOTE: The allowed range is fixed at 8g's, regardless of the current
+'       setting of AccelScale()
+'   NOTE: If AccelLowNoiseMode() is set to LOWNOISE, the maximum threshold
+'       recognized using this method will be 4_000000 (4g's)
+    case thresh
+        0..8_000000:
+            thresh /= 0_063000
+            writereg(core#PULSE_THSZ, 1, @thresh)
+        other:
+            readreg(core#PULSE_THSZ, 1, @curr_thresh)
+            return curr_thresh * 0_063000       ' scale to 1..8_000000 (8g's)
+
+PUB ClickTime(ctime): curr_ctime | time_res
+' Set maximum elapsed interval between start of click and end of click, in uSec
+'   (i.e., time from set ClickThresh exceeded to falls back below threshold)
+'   Valid values:
+'           XXX TBD
+'   Any other value polls the chip and returns the current setting
+    case ctime
+        0..255:
+            writereg(core#PULSE_TMLT, 1, @ctime)
+        other:
+            curr_ctime := 0
+            readreg(core#PULSE_TMLT, 1, @curr_ctime)
+
+PUB DoubleClickWindow(dctime): curr_dctime | time_res
+' Set maximum elapsed interval between two consecutive clicks, in uSec
+'   Valid values:
+'       XXX TBD
+'   Any other value polls the chip and returns the current setting
+    case dctime
+        0..255:
+            writereg(core#PULSE_WIND, 1, @dctime)
+        other:
+            curr_dctime := 0
+            readreg(core#PULSE_WIND, 1, @curr_dctime)
+
 PUB DeviceID{}: id
 ' Read device identification
 '   Returns: $2A
