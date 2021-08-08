@@ -63,6 +63,16 @@ CON
     Z_AXIS          = 0
     ALL_AXES        = 3
 
+' Orientation
+    PORTUP_FR       = %000
+    PORTUP_BK       = %001
+    PORTDN_FR       = %010
+    PORTDN_BK       = %011
+    LANDRT_FR       = %100
+    LANDRT_BK       = %101
+    LANDLT_FR       = %110
+    LANDLT_BK       = %111
+
 VAR
 
     long _ares
