@@ -5,7 +5,7 @@
     Description: Demo of the MMA8452Q driver
     Copyright (c) 2021
     Started May 09, 2021
-    Updated May 10, 2021
+    Updated Oct 28, 2021
     See end of file for terms of use.
     --------------------------------------------
 }
@@ -108,9 +108,6 @@ PUB Setup{}
         ser.strln(string("MMA8452Q driver started (I2C)"))
     else
         ser.strln(string("MMA8452Q driver failed to start - halting"))
-        accel.stop{}
-        time.msleep(5)
-        ser.stop{}
         repeat
 
 DAT
