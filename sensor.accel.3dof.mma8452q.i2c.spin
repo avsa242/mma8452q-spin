@@ -123,6 +123,22 @@ PUB Preset_Active{}
     accelopmode(ACTIVE)
     accelscale(2)
 
+PUB Preset_ClickDet{}
+' Presets for click-detection
+    reset{}
+    accelopmode(STDBY)
+    acceldatarate(400)
+    accelscale(2)
+    clickaxisenabled(%010101)                   ' enable X, Y, Z single tap det
+    clickthreshx(1_575000)                      ' X: 1.575g thresh
+    clickthreshy(1_575000)                      ' Y: 1.575g
+    clickthreshz(2_650000)                      ' Z: 2.650g
+    clicktime(80)
+    clicklatency(240)
+    intmask(INT_PULSE)                          ' enable click/pulse interrupts
+    introuting(INT_PULSE)                       ' route click ints to INT1 pin
+    accelopmode(ACTIVE)
+
 PUB AccelADCRes(adc_res): curr_res
 ' dummy method
 

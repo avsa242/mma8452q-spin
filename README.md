@@ -1,5 +1,4 @@
 # mma8452q-spin
-
 ---------------
 
 This is a P8X32A/Propeller, ~~P2X8C4M64P/Propeller 2~~ driver object for the MMA8452Q 3DoF Accelerometer.
@@ -9,6 +8,15 @@ This is a P8X32A/Propeller, ~~P2X8C4M64P/Propeller 2~~ driver object for the MMA
 ## Salient Features
 
 * I2C connection at up to 400kHz
+* Manually or automatically set bias offsets (on-chip)
+* Read accelerometer data in ADC words or micro-g's
+* Set output data rate
+* Set power state
+* Set accelerometer full-scale
+* Set interrupt flags
+* Orientation detection
+* Read flags: accelerometer data ready, data overrun, interrupts
+* Click detection
 
 ## Requirements
 
@@ -23,7 +31,7 @@ P2/SPIN2:
 
 ## Compiler Compatibility
 
-* P1/SPIN1: OpenSpin (tested with 1.00.81), FlexSpin (tested with 5.3.3-beta)
+* P1/SPIN1: OpenSpin (tested with 1.00.81), FlexSpin (tested with 5.9.4-beta)
 * ~~P2/SPIN2: FlexSpin (tested with 5.3.3-beta)~~ _(not yet implemented)_
 * ~~BST~~ (incompatible - no preprocessor)
 * ~~Propeller Tool~~ (incompatible - no preprocessor)
@@ -32,7 +40,5 @@ P2/SPIN2:
 ## Limitations
 
 * Very early in development - may malfunction, or outright fail to build
+* Some click-related settings do not have scaled parameters yet and just take register values
 
-## TODO
-
-- [ ] TBD
