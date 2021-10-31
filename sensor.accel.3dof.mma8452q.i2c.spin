@@ -129,12 +129,13 @@ PUB Preset_ClickDet{}
     accelopmode(STDBY)
     acceldatarate(400)
     accelscale(2)
-    clickaxisenabled(%010101)                   ' enable X, Y, Z single tap det
+    clickaxisenabled(%111111)                   ' enable X, Y, Z single tap det
     clickthreshx(1_575000)                      ' X: 1.575g thresh
     clickthreshy(1_575000)                      ' Y: 1.575g
     clickthreshz(2_650000)                      ' Z: 2.650g
     clicktime(50_000)
     clicklatency(300_000)
+    doubleclickwindow(300_000)
     intmask(INT_PULSE)                          ' enable click/pulse interrupts
     introuting(INT_PULSE)                       ' route click ints to INT1 pin
     accelopmode(ACTIVE)
@@ -570,17 +571,37 @@ PUB ClickTime(ctime): curr_ctime | time_res, odr
         readreg(core#PULSE_TMLT, 1, @curr_ctime)
         return (curr_ctime * time_res)
 
-PUB DoubleClickWindow(dctime): curr_dctime | time_res
+PUB DoubleClickWindow(dctime): curr_dctime | time_res, odr
 ' Set maximum elapsed interval between two consecutive clicks, in uSec
 '   Valid values:
-'       XXX TBD
+'                                   Max time range
+'                           ClickLPFEnabled()
+'       AccelDataRate():    == 0        == 1
+'       800                 318_000     638_000
+'       400                 318_000     1_276_000
+'       200                 638_000     2_560_000
+'       100                 1_276_000   5_100_000
+'       50                  2_560_000   10_200_000
+'       12                  2_560_000   10_200_000
+'       6                   2_560_000   10_200_000
+'       1                   2_560_000   10_200_000
 '   Any other value polls the chip and returns the current setting
-    case dctime
-        0..255:
-            writereg(core#PULSE_WIND, 1, @dctime)
-        other:
-            curr_dctime := 0
-            readreg(core#PULSE_WIND, 1, @curr_dctime)
+    ' calc time resolution (in microseconds) based on AccelDataRate() (1/ODR),
+    '   then limit to range spec'd in AN4072
+    odr := acceldatarate(-2)
+    if clicklpfenabled(-2)
+        time_res := 2_500 #> ((1_000000/odr) * 2) <# 40_000
+    else
+        time_res := 1_250 #> ((1_000000/odr) / 2) <# 10_000
+
+    ' check that the parameter is between 0 and the max time range for
+    '   the current AccelDataRate() setting
+    if (dctime => 0) and (dctime =< (time_res * 255))
+        dctime /= time_res
+        writereg(core#PULSE_WIND, 1, @dctime)
+    else
+        readreg(core#PULSE_WIND, 1, @curr_dctime)
+        return (curr_dctime * time_res)
 
 PUB DeviceID{}: id
 ' Read device identification
