@@ -426,20 +426,25 @@ PUB ClickLatency(ltime): curr_ltime | time_res, odr
 '       any subsequent clicks (single or double). All clicks *during* this time
 '       will be ignored.
 '   Valid values:
-'       AccelDataRate():    Max time range:
-'       800                 318_000
-'       400                 318_000
-'       200                 638_000
-'       100                 1_276_000
-'       50                  2_560_000
-'       12                  2_560_000
-'       6                   2_560_000
-'       1                   2_560_000
+'                                   Max time range
+'                           ClickLPFEnabled()
+'       AccelDataRate():    == 0        == 1
+'       800                 318_000     638_000
+'       400                 318_000     1_276_000
+'       200                 638_000     2_560_000
+'       100                 1_276_000   5_100_000
+'       50                  2_560_000   10_200_000
+'       12                  2_560_000   10_200_000
+'       6                   2_560_000   10_200_000
+'       1                   2_560_000   10_200_000
 '   Any other value polls the chip and returns the current setting
     ' calc time resolution (in microseconds) based on AccelDataRate() (1/ODR),
     '   then limit to range spec'd in AN4072
     odr := acceldatarate(-2)
-    time_res := 1_250 #> ((1_000000/odr) / 2) <# 10_000
+    if clicklpfenabled(-2)
+        time_res := 2_500 #> ((1_000000/odr) * 2) <# 40_000
+    else
+        time_res := 1_250 #> ((1_000000/odr) / 2) <# 10_000
 
     ' check that the parameter is between 0 and the max time range for
     '   the current AccelDataRate() setting
@@ -536,20 +541,25 @@ PUB ClickTime(ctime): curr_ctime | time_res, odr
 ' Set maximum elapsed interval between start of click and end of click, in uSec
 '   (i.e., time from set ClickThresh exceeded to falls back below threshold)
 '   Valid values:
-'       AccelDataRate():    Max time range:
-'       800                 159_000
-'       400                 159_000
-'       200                 319_000
-'       100                 638_000
-'       50                  1_280_000
-'       12                  1_280_000
-'       6                   1_280_000
-'       1                   1_280_000
+'                                   Max time range
+'                           ClickLPFEnabled()
+'       AccelDataRate():    == 0        == 1
+'       800                 159_000     319_000
+'       400                 159_000     638_000
+'       200                 319_000     1_280_000
+'       100                 638_000     2_550_000
+'       50                  1_280_000   5_100_000
+'       12                  1_280_000   5_100_000
+'       6                   1_280_000   5_100_000
+'       1                   1_280_000   5_100_000
 '   Any other value polls the chip and returns the current setting
     ' calc time resolution (in microseconds) based on AccelDataRate() (1/ODR),
     '   then limit to range spec'd in AN4072
     odr := acceldatarate(-2)
-    time_res := 0_625 #> ((1_000000/odr) / 4) <# 5_000
+    if clicklpfenabled(-2)
+        time_res := 1_250 #> ((1_000000/odr)) <# 20_000
+    else
+        time_res := 0_625 #> ((1_000000/odr) / 4) <# 5_000
 
     ' check that the parameter is between 0 and the max time range for
     '   the current AccelDataRate() setting
