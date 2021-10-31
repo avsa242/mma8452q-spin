@@ -450,6 +450,21 @@ PUB ClickLatency(ltime): curr_ltime | time_res, odr
         readreg(core#PULSE_LTCY, 1, @curr_ltime)
         return (curr_ltime * time_res)
 
+PUB ClickLPFEnabled(state): curr_state
+' Enable click detection low-pass filter
+'   Valid Values: TRUE (-1 or 1), FALSE (0)
+'   Any other value polls the chip and returns the current setting
+    curr_state := 0
+    readreg(core#HP_FILT_CUTOFF, 1, @curr_state)
+    case ||(state)
+        0, 1:
+            state := ||(state) << core#PLS_LPF_EN
+        other:
+            return (((curr_state >> core#PLS_LPF_EN) & 1) == 1)
+
+    state := ((curr_state & core#PLS_LPF_EN_MASK) | state)
+    writereg(core#HP_FILT_CUTOFF, 1, @state)
+
 PUB ClickThresh(thresh): curr_thresh
 ' Set threshold for recognizing a click (all axes), in micro-g's
 '   Valid values:
