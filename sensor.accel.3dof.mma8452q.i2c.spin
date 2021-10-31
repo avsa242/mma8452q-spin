@@ -124,7 +124,7 @@ PUB Preset_Active{}
     accelscale(2)
 
 PUB Preset_ClickDet{}
-' Presets for click-detection
+' Preset for click detection
     reset{}
     accelopmode(STDBY)
     acceldatarate(400)
@@ -502,18 +502,33 @@ PUB ClickThreshZ(thresh): curr_thresh
             readreg(core#PULSE_THSZ, 1, @curr_thresh)
             return curr_thresh * 0_063000       ' scale to 1..8_000000 (8g's)
 
-PUB ClickTime(ctime): curr_ctime | time_res
+PUB ClickTime(ctime): curr_ctime | time_res, odr
 ' Set maximum elapsed interval between start of click and end of click, in uSec
 '   (i.e., time from set ClickThresh exceeded to falls back below threshold)
 '   Valid values:
-'           XXX TBD
+'       AccelDataRate():    Max time range:
+'       800                 159_000
+'       400                 159_000
+'       200                 319_000
+'       100                 638_000
+'       50                  1_280_000
+'       12                  1_280_000
+'       6                   1_280_000
+'       1                   1_280_000
 '   Any other value polls the chip and returns the current setting
-    case ctime
-        0..255:
-            writereg(core#PULSE_TMLT, 1, @ctime)
-        other:
-            curr_ctime := 0
-            readreg(core#PULSE_TMLT, 1, @curr_ctime)
+    ' calc time resolution (in microseconds) based on AccelDataRate() (1/ODR),
+    '   then limit to range spec'd in AN4072
+    odr := acceldatarate(-2)
+    time_res := 0_625 #> ((1_000000/odr) / 4) <# 5_000
+
+    ' check that the parameter is between 0 and the max time range for
+    '   the current AccelDataRate() setting
+    if (ctime => 0) and (ctime =< (time_res * 255))
+        ctime /= time_res
+        writereg(core#PULSE_TMLT, 1, @ctime)
+    else
+        readreg(core#PULSE_TMLT, 1, @curr_ctime)
+        return (curr_ctime * time_res)
 
 PUB DoubleClickWindow(dctime): curr_dctime | time_res
 ' Set maximum elapsed interval between two consecutive clicks, in uSec

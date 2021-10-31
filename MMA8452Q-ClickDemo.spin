@@ -45,7 +45,7 @@ PUB Main{} | click_src, int_act, dclicked, sclicked, z_clicked, y_clicked, x_cli
         click_src := accel.clickedint{}
         int_act := ((click_src >> 7) & 1)
         dclicked := ((click_src >> 3) & 1)
-'        sclicked := ((click_src >> 4) & 1)
+        sclicked := ((click_src >> 7) & 1)
         z_clicked := ((click_src >> 6) & 1)
         y_clicked := ((click_src >> 5) & 1)
         x_clicked := ((click_src >> 4) & 1)
