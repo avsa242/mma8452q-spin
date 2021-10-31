@@ -133,8 +133,8 @@ PUB Preset_ClickDet{}
     clickthreshx(1_575000)                      ' X: 1.575g thresh
     clickthreshy(1_575000)                      ' Y: 1.575g
     clickthreshz(2_650000)                      ' Z: 2.650g
-    clicktime(80)
-    clicklatency(240)
+    clicktime(50_000)
+    clicklatency(300_000)
     intmask(INT_PULSE)                          ' enable click/pulse interrupts
     introuting(INT_PULSE)                       ' route click ints to INT1 pin
     accelopmode(ACTIVE)
@@ -421,19 +421,34 @@ PUB ClickIntEnabled(state): curr_state
     state := ((curr_state & core#IE_PULSE_MASK) | state)
     writereg(core#CTRL_REG4, 1, @state)
 
-PUB ClickLatency(ltime): curr_ltime
+PUB ClickLatency(ltime): curr_ltime | time_res, odr
 '   Set minimum elapsed time from detection of first click to recognition of
 '       any subsequent clicks (single or double). All clicks *during* this time
 '       will be ignored.
 '   Valid values:
-'           XXX TBD
+'       AccelDataRate():    Max time range:
+'       800                 318_000
+'       400                 318_000
+'       200                 638_000
+'       100                 1_276_000
+'       50                  2_560_000
+'       12                  2_560_000
+'       6                   2_560_000
+'       1                   2_560_000
 '   Any other value polls the chip and returns the current setting
-'   NOTE: Minimum unit is dependent on the current output data rate (AccelDataRate)
-    case ltime
-        0..255: ' XXX rewrite with time units
-            writereg(core#PULSE_LTCY, 1, @ltime)
-        other:
-            return curr_ltime
+    ' calc time resolution (in microseconds) based on AccelDataRate() (1/ODR),
+    '   then limit to range spec'd in AN4072
+    odr := acceldatarate(-2)
+    time_res := 1_250 #> ((1_000000/odr) / 2) <# 10_000
+
+    ' check that the parameter is between 0 and the max time range for
+    '   the current AccelDataRate() setting
+    if (ltime => 0) and (ltime =< (time_res * 255))
+        ltime /= time_res
+        writereg(core#PULSE_LTCY, 1, @ltime)
+    else
+        readreg(core#PULSE_LTCY, 1, @curr_ltime)
+        return (curr_ltime * time_res)
 
 PUB ClickThresh(thresh): curr_thresh
 ' Set threshold for recognizing a click (all axes), in micro-g's
