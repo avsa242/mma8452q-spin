@@ -257,6 +257,155 @@ PUB AccelHPFEnabled(state): curr_state
     state := ((curr_state & core#HPF_OUT_MASK) | state)
     writereg(core#XYZ_DATA_CFG, 1, @state)
 
+PUB AccelHPFreq(freq): curr_freq
+' Set accelerometer data high-pass cutoff frequency, in milli-Hz
+'   Valid values:
+'   AccelPowerMode(): NORMAL
+'   AccelDataRate():    800, 400    200     100     50, 12, 6, 1
+'                       16_000      8_000   4_000   2_000
+'                       8_000       4_000   2_000   1_000
+'                       4_000       2_000   1_000   500
+'                       2_000       1_000   500     250
+'   AccelPowerMode(): LONOISE_LOPWR
+'   AccelDataRate():    800, 400    200     100     50      12, 6, 1
+'                       16_000      8_000   4_000   2_000   500
+'                       8_000       4_000   2_000   1_000   250
+'                       4_000       2_000   1_000   500     125
+'                       2_000       1_000   500     250     63
+'   AccelPowerMode(): HIGHRES
+'   AccelDataRate():    All
+'                       16_000
+'                       8_000
+'                       4_000
+'                       2_000
+'   AccelPowerMode(): LOPWR
+'   AccelDataRate():    800     400     200     100     50      12, 6, 1
+'                       16_000  8_000   4_000   2_000   1_000   250
+'                       8_000   4_000   2_000   1_000   500     125
+'                       4_000   2_000   1_000   500     250     63
+'                       2_000   1_000   500     250     125     31
+'   Any other value polls the chip and returns the current setting
+    curr_freq := 0
+    readreg(core#HP_FILT_CUTOFF, 1, @curr_freq)
+    case accelpowermode(-2)
+        NORMAL:
+            case acceldatarate(-2)
+                800, 400:
+                    case freq
+                        16_000, 8_000, 4_000, 2_000:
+                            freq := lookdownz(freq: 16_000, 8_000, 4_000, 2_000)
+                        other:
+                            curr_freq &= core#SEL_BITS
+                            return lookupz(curr_freq: 16_000, 8_000, 4_000, 2_000)
+                200:
+                    case freq
+                        8_000, 4_000, 2_000, 1_000:
+                            freq := lookdownz(freq: 8_000, 4_000, 2_000, 1_000)
+                        other:
+                            curr_freq &= core#SEL_BITS
+                            return lookupz(curr_freq: 8_000, 4_000, 2_000, 1_000)
+                100:
+                    case freq
+                        4_000, 2_000, 1_000, 500:
+                            freq := lookdownz(freq: 4_000, 2_000, 1_000, 500)
+                        other:
+                            curr_freq &= core#SEL_BITS
+                            return lookupz(curr_freq: 4_000, 2_000, 1_000, 500)
+                50, 12, 6, 1:
+                    case freq
+                        2_000, 1_000, 500, 250:
+                            freq := lookdownz(freq: 2_000, 1_000, 500, 250)
+                        other:
+                            curr_freq &= core#SEL_BITS
+                            return lookupz(curr_freq: 2_000, 1_000, 500, 250)
+        LONOISE_LOPWR:
+            case acceldatarate(-2)
+                800, 400:
+                    case freq
+                        16_000, 8_000, 4_000, 2_000:
+                            freq := lookdownz(freq: 16_000, 8_000, 4_000, 2_000)
+                        other:
+                            curr_freq &= core#SEL_BITS
+                            return lookupz(curr_freq: 16_000, 8_000, 4_000, 2_000)
+                200:
+                    case freq
+                        8_000, 4_000, 2_000, 1_000:
+                            freq := lookdownz(freq: 8_000, 4_000, 2_000, 1_000)
+                        other:
+                            curr_freq &= core#SEL_BITS
+                            return lookupz(curr_freq: 8_000, 4_000, 2_000, 1_000)
+                100:
+                    case freq
+                        4_000, 2_000, 1_000, 500:
+                            freq := lookdownz(freq: 4_000, 2_000, 1_000, 500)
+                        other:
+                            curr_freq &= core#SEL_BITS
+                            return lookupz(curr_freq: 4_000, 2_000, 1_000, 500)
+                50:
+                    case freq
+                        2_000, 1_000, 500, 250:
+                            freq := lookdownz(freq: 2_000, 1_000, 500, 250)
+                        other:
+                            curr_freq &= core#SEL_BITS
+                            return lookupz(curr_freq: 2_000, 1_000, 500, 250)
+                12, 6, 1:
+                    case freq
+                        500, 250, 125, 63:
+                            freq := lookdownz(freq: 500, 250, 125, 63)
+                        other:
+                            curr_freq &= core#SEL_BITS
+                            return lookupz(curr_freq: 500, 250, 125, 63)
+        HIGHRES:
+            case freq
+                2_000, 4_000, 8_000, 16_000:
+                    freq := lookdownz(freq: 16_000, 8_000, 4_000, 2_000)
+        LOPWR:
+            case acceldatarate(-2)
+                800:
+                    case freq
+                        16_000, 8_000, 4_000, 2_000:
+                            freq := lookdownz(freq: 16_000, 8_000, 4_000, 2_000)
+                        other:
+                            curr_freq &= core#SEL_BITS
+                            return lookupz(curr_freq: 16_000, 8_000, 4_000, 2_000)
+                400:
+                    case freq
+                        8_000, 4_000, 2_000, 1_000:
+                            freq := lookdownz(freq: 8_000, 4_000, 2_000, 1_000)
+                        other:
+                            curr_freq &= core#SEL_BITS
+                            return lookupz(curr_freq: 8_000, 4_000, 2_000, 1_000)
+                200:
+                    case freq
+                        4_000, 2_000, 1_000, 500:
+                            freq := lookdownz(freq: 4_000, 2_000, 1_000, 500)
+                        other:
+                            curr_freq &= core#SEL_BITS
+                            return lookupz(curr_freq: 4_000, 2_000, 1_000, 500)
+                100:
+                    case freq
+                        2_000, 1_000, 500, 250:
+                            freq := lookdownz(freq: 2_000, 1_000, 500, 250)
+                        other:
+                            curr_freq &= core#SEL_BITS
+                            return lookupz(curr_freq: 2_000, 1_000, 500, 250)
+                50:
+                    case freq
+                        1_000, 500, 250, 125:
+                            freq := lookdownz(freq: 1_000, 500, 250, 125)
+                        other:
+                            curr_freq &= core#SEL_BITS
+                            return lookupz(curr_freq: 1_000, 500, 250, 125)
+                12, 6, 1:
+                    case freq
+                        250, 125, 63, 31:
+                            freq := lookdownz(freq: 250, 125, 63, 31)
+                        other:
+                            curr_freq &= core#SEL_BITS
+                            return lookupz(curr_freq: 250, 125, 63, 31)
+    freq := ((curr_freq & core#SEL_MASK) | freq)
+    writereg(core#HP_FILT_CUTOFF, 1, @freq)
+
 PUB AccelInt{}: flag
 ' Flag indicating accelerometer interrupt asserted
 
