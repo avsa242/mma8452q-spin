@@ -242,6 +242,21 @@ PUB AccelG(ptr_x, ptr_y, ptr_z) | tmp[ACCEL_DOF]
     long[ptr_y] := tmp[Y_AXIS] * _ares
     long[ptr_z] := tmp[Z_AXIS] * _ares
 
+PUB AccelHPFEnabled(state): curr_state
+' Enable accelerometer data high-pass filter
+'   Valid values: TRUE (-1 or 1), FALSE (0)
+'   Any other value polls the chip and returns the current setting
+    curr_state := 0
+    readreg(core#XYZ_DATA_CFG, 1, @curr_state)
+    case ||(state)
+        0, 1:
+            state := ||(state) << core#HPF_OUT
+        other:
+            return (((curr_state >> core#HPF_OUT) & 1) == 1)
+
+    state := ((curr_state & core#HPF_OUT_MASK) | state)
+    writereg(core#XYZ_DATA_CFG, 1, @state)
+
 PUB AccelInt{}: flag
 ' Flag indicating accelerometer interrupt asserted
 
