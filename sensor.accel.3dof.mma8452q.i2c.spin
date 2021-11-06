@@ -5,7 +5,7 @@
     Description: Driver for the MMA8452Q 3DoF accelerometer
     Copyright (c) 2021
     Started May 09, 2021
-    Updated Aug 8, 2021
+    Updated Nov 6, 2021
     See end of file for terms of use.
     --------------------------------------------
 }
@@ -126,7 +126,6 @@ PUB Preset_Active{}
 PUB Preset_ClickDet{}
 ' Preset for click detection
     reset{}
-    accelopmode(STDBY)
     acceldatarate(400)
     accelscale(2)
     clickaxisenabled(%111111)                   ' enable X, Y, Z single tap det
@@ -180,14 +179,14 @@ PUB AccelBias(bias_x, bias_y, bias_z, rw) | tmp, opmode_orig
                 other:
                     return
             opmode_orig := accelopmode(-2)
-            if opmode_orig <> STDBY
-                accelopmode(STDBY)
+            if opmode_orig <> STDBY             ' must be in standby to change
+                accelopmode(STDBY)              '   control regs
 
             writereg(core#OFF_X, 1, @_abiasraw[X_AXIS])
             writereg(core#OFF_Y, 1, @_abiasraw[Y_AXIS])
             writereg(core#OFF_Z, 1, @_abiasraw[Z_AXIS])
 
-            if opmode_orig <> STDBY
+            if opmode_orig <> STDBY             ' restore original opmode
                 accelopmode(opmode_orig)
 
 PUB AccelClearInt{}
@@ -221,12 +220,12 @@ PUB AccelDataRate(rate): curr_rate | opmode_orig
 
     rate := ((curr_rate & core#DR_MASK) | rate)
     opmode_orig := accelopmode(-2)
-    if opmode_orig <> STDBY
-        accelopmode(STDBY)
+    if opmode_orig <> STDBY                     ' must be in standby to change
+        accelopmode(STDBY)                      '   control regs
 
     writereg(core#CTRL_REG1, 1, @rate)
 
-    if opmode_orig <> STDBY
+    if opmode_orig <> STDBY                     ' restore original opmode
         accelopmode(opmode_orig)
 
 PUB AccelDataReady{}: flag
@@ -427,13 +426,13 @@ PUB AccelLowNoiseMode(mode): curr_mode | opmode_orig    'XXX tentatively named
 
     opmode_orig := accelopmode(-2)
 
-    if opmode_orig <> STDBY
-        accelopmode(STDBY)
+    if opmode_orig <> STDBY                     ' must be in standby to change
+        accelopmode(STDBY)                      '   control regs
 
     mode := ((curr_mode & core#LNOISE_MASK) | mode)
     writereg(core#CTRL_REG1, 1, @mode)
 
-    if opmode_orig <> STDBY
+    if opmode_orig <> STDBY                     ' restore original opmode
         accelopmode(opmode_orig)
 
 PUB AccelLowPassFilter(freq): curr_freq
@@ -456,7 +455,7 @@ PUB AccelOpMode(mode): curr_mode
     writereg(core#CTRL_REG1, 1, @mode)
 
 PUB AccelPowerMode(mode): curr_mode | opmode_orig ' XXX tentatively named
-' Set accelerometer power mode/oversampling mode
+' Set accelerometer power mode/oversampling mode, when active
 '   Valid values:
 '       NORMAL (0): Normal
 '       LONOISE_LOPWR (1): Low noise low power
@@ -474,12 +473,12 @@ PUB AccelPowerMode(mode): curr_mode | opmode_orig ' XXX tentatively named
 
     opmode_orig := accelopmode(-2)
 
-    if opmode_orig <> STDBY
-        accelopmode(STDBY)
+    if opmode_orig <> STDBY                     ' must be in standby to change
+        accelopmode(STDBY)                      '   control regs
 
     writereg(core#CTRL_REG2, 1, @mode)
 
-    if opmode_orig <> STDBY
+    if opmode_orig <> STDBY                     ' restore original opmode
         accelopmode(opmode_orig)
 
 PUB AccelScale(scale): curr_scl | opmode_orig
@@ -497,13 +496,16 @@ PUB AccelScale(scale): curr_scl | opmode_orig
             return lookupz(curr_scl: 2, 4, 8)
 
     scale := ((curr_scl & core#FS_MASK) | scale)
+
     opmode_orig := accelopmode(-2)
-    accelopmode(STDBY)                          ' must be in standby to change
+
+    if opmode_orig <> STDBY                     ' must be in standby to change
+        accelopmode(STDBY)                      '   control regs
 
     writereg(core#XYZ_DATA_CFG, 1, @scale)
 
-    if opmode_orig == ACTIVE                    ' restore opmode, if applicable
-        accelopmode(ACTIVE)
+    if opmode_orig <> STDBY                     ' restore original opmode
+        accelopmode(opmode_orig)
 
 PUB CalibrateAccel{} | acceltmp[ACCEL_DOF], axis, x, y, z, samples, scale_orig, drate_orig
 ' Calibrate the accelerometer
@@ -806,12 +808,12 @@ PUB IntMask(mask): curr_mask | opmode_orig
         %00000000..%10111101:
             mask &= core#CTRL_REG4_MASK
             opmode_orig := accelopmode(-2)
-            if opmode_orig <> STDBY
-                accelopmode(STDBY)
+            if opmode_orig <> STDBY             ' must be in standby to change
+                accelopmode(STDBY)              '   control regs
 
             writereg(core#CTRL_REG4, 1, @mask)
 
-            if opmode_orig <> STDBY
+            if opmode_orig <> STDBY             ' restore original opmode
                 accelopmode(opmode_orig)
         other:
             readreg(core#CTRL_REG4, 1, @curr_mask)
@@ -837,12 +839,12 @@ PUB IntRouting(mask): curr_mask | opmode_orig
         %00000000..%10111101:
             mask &= core#CTRL_REG5_MASK
             opmode_orig := accelopmode(-2)
-            if opmode_orig <> STDBY
-                accelopmode(STDBY)
+            if opmode_orig <> STDBY             ' must be in standby to change
+                accelopmode(STDBY)              '   control regs
 
             writereg(core#CTRL_REG5, 1, @mask)
 
-            if opmode_orig <> STDBY
+            if opmode_orig <> STDBY             ' restore original opmode
                 accelopmode(opmode_orig)
         other:
             readreg(core#CTRL_REG5, 1, @curr_mask)
@@ -863,7 +865,7 @@ PUB Orientation{}: curr_or
     readreg(core#PL_STATUS, 1, @curr_or)
     return (curr_or & core#LAPOBAFRO_BITS)
 
-PUB OrientDetect(state): curr_state
+PUB OrientDetect(state): curr_state | opmode_orig
 ' Enable orientation detection
 '   Valid values: TRUE (-1 or 1), FALSE (0)
 '   Any other value polls the chip and returns the current setting
@@ -876,9 +878,16 @@ PUB OrientDetect(state): curr_state
             return ((curr_state >> core#PL_EN) & 1) == 1
 
     state := ((curr_state & core#PL_EN_MASK) | state)
-    accelopmode(STDBY)
+
+    opmode_orig := accelopmode(-2)
+
+    if opmode_orig <> STDBY                     ' must be in standby to change
+        accelopmode(STDBY)                      '   control regs
+
     writereg(core#PL_CFG, 1, @state)
-    accelopmode(ACTIVE)
+
+    if opmode_orig <> STDBY                     ' restore original opmode
+        accelopmode(opmode_orig)
 
 PUB Reset{} | tmp
 ' Reset the device
