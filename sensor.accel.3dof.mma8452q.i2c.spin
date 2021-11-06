@@ -81,6 +81,7 @@ VAR
 
     long _ares
     long _abiasraw[ACCEL_DOF]
+    byte _opmode_orig
 
 OBJ
 
@@ -145,7 +146,7 @@ PUB AccelADCRes(adc_res): curr_res
 PUB AccelAxisEnabled(xyz_mask): curr_mask
 ' dummy method
 
-PUB AccelBias(bias_x, bias_y, bias_z, rw) | tmp, opmode_orig
+PUB AccelBias(bias_x, bias_y, bias_z, rw) | tmp
 ' Read or write/manually set accelerometer calibration offset values
 '   Valid values:
 '       rw:
@@ -154,7 +155,7 @@ PUB AccelBias(bias_x, bias_y, bias_z, rw) | tmp, opmode_orig
 '           -128..127
 '   NOTE: When rw is set to READ, bias_x, bias_y and bias_z must be pointers
 '       to respective variables to hold the returned calibration offset values
-    tmp := opmode_orig := 0
+    tmp := 0
     case rw
         R:
             readreg(core#OFF_X, 3, @tmp)
@@ -178,16 +179,11 @@ PUB AccelBias(bias_x, bias_y, bias_z, rw) | tmp, opmode_orig
                     _abiasraw[Z_AXIS] := bias_z
                 other:
                     return
-            opmode_orig := accelopmode(-2)
-            if opmode_orig <> STDBY             ' must be in standby to change
-                accelopmode(STDBY)              '   control regs
-
+            cacheopmode{}                       ' switch to stdby to mod regs
             writereg(core#OFF_X, 1, @_abiasraw[X_AXIS])
             writereg(core#OFF_Y, 1, @_abiasraw[Y_AXIS])
             writereg(core#OFF_Z, 1, @_abiasraw[Z_AXIS])
-
-            if opmode_orig <> STDBY             ' restore original opmode
-                accelopmode(opmode_orig)
+            restoreopmode{}                     ' restore original opmode
 
 PUB AccelClearInt{}
 ' Clear Accelerometer interrupts
@@ -204,7 +200,7 @@ PUB AccelDataOverrun{}: flag
     readreg(core#STATUS, 1, @flag)
     return ((flag & core#ZYX_OW) <> 0)
 
-PUB AccelDataRate(rate): curr_rate | opmode_orig
+PUB AccelDataRate(rate): curr_rate
 ' Set accelerometer output data rate, in Hz
 '   Valid values:
 '       1 (1.56), 6 (6.25), 12 (12.5), 50, 100, 200, 400, 800
@@ -219,14 +215,9 @@ PUB AccelDataRate(rate): curr_rate | opmode_orig
             return lookupz(curr_rate: 800, 400, 200, 100, 50, 12, 6, 1)
 
     rate := ((curr_rate & core#DR_MASK) | rate)
-    opmode_orig := accelopmode(-2)
-    if opmode_orig <> STDBY                     ' must be in standby to change
-        accelopmode(STDBY)                      '   control regs
-
+    cacheopmode{}                               ' switch to stdby to mod regs
     writereg(core#CTRL_REG1, 1, @rate)
-
-    if opmode_orig <> STDBY                     ' restore original opmode
-        accelopmode(opmode_orig)
+    restoreopmode{}                             ' restore original opmode
 
 PUB AccelDataReady{}: flag
 ' Flag indicating new accelerometer data available
@@ -408,7 +399,7 @@ PUB AccelHPFreq(freq): curr_freq
 PUB AccelInt{}: flag
 ' Flag indicating accelerometer interrupt asserted
 
-PUB AccelLowNoiseMode(mode): curr_mode | opmode_orig    'XXX tentatively named
+PUB AccelLowNoiseMode(mode): curr_mode    'XXX tentatively named
 ' Set accelerometer low noise mode
 '   Valid values:
 '       NORMAL (0), LOWNOISE (1)
@@ -424,16 +415,10 @@ PUB AccelLowNoiseMode(mode): curr_mode | opmode_orig    'XXX tentatively named
         other:
             return ((curr_mode >> core#LNOISE) & 1)
 
-    opmode_orig := accelopmode(-2)
-
-    if opmode_orig <> STDBY                     ' must be in standby to change
-        accelopmode(STDBY)                      '   control regs
-
+    cacheopmode{}                               ' switch to stdby to mod regs
     mode := ((curr_mode & core#LNOISE_MASK) | mode)
     writereg(core#CTRL_REG1, 1, @mode)
-
-    if opmode_orig <> STDBY                     ' restore original opmode
-        accelopmode(opmode_orig)
+    restoreopmode{}                             ' restore original opmode
 
 PUB AccelLowPassFilter(freq): curr_freq
 ' Enable accelerometer data low-pass filter
@@ -454,7 +439,7 @@ PUB AccelOpMode(mode): curr_mode
     mode := ((curr_mode & core#ACTIVE_MASK) | mode)
     writereg(core#CTRL_REG1, 1, @mode)
 
-PUB AccelPowerMode(mode): curr_mode | opmode_orig ' XXX tentatively named
+PUB AccelPowerMode(mode): curr_mode ' XXX tentatively named
 ' Set accelerometer power mode/oversampling mode, when active
 '   Valid values:
 '       NORMAL (0): Normal
@@ -471,17 +456,11 @@ PUB AccelPowerMode(mode): curr_mode | opmode_orig ' XXX tentatively named
 
     mode := ((curr_mode & core#MODS_MASK) | mode)
 
-    opmode_orig := accelopmode(-2)
-
-    if opmode_orig <> STDBY                     ' must be in standby to change
-        accelopmode(STDBY)                      '   control regs
-
+    cacheopmode{}                               ' switch to stdby to mod regs
     writereg(core#CTRL_REG2, 1, @mode)
+    restoreopmode{}                             ' restore original opmode
 
-    if opmode_orig <> STDBY                     ' restore original opmode
-        accelopmode(opmode_orig)
-
-PUB AccelScale(scale): curr_scl | opmode_orig
+PUB AccelScale(scale): curr_scl
 ' Set the full-scale range of the accelerometer, in g's
     curr_scl := 0
     readreg(core#XYZ_DATA_CFG, 1, @curr_scl)
@@ -496,16 +475,9 @@ PUB AccelScale(scale): curr_scl | opmode_orig
             return lookupz(curr_scl: 2, 4, 8)
 
     scale := ((curr_scl & core#FS_MASK) | scale)
-
-    opmode_orig := accelopmode(-2)
-
-    if opmode_orig <> STDBY                     ' must be in standby to change
-        accelopmode(STDBY)                      '   control regs
-
+    cacheopmode{}                               ' switch to stdby to mod regs
     writereg(core#XYZ_DATA_CFG, 1, @scale)
-
-    if opmode_orig <> STDBY                     ' restore original opmode
-        accelopmode(opmode_orig)
+    restoreopmode{}                             ' restore original opmode
 
 PUB CalibrateAccel{} | acceltmp[ACCEL_DOF], axis, x, y, z, samples, scale_orig, drate_orig
 ' Calibrate the accelerometer
@@ -791,7 +763,7 @@ PUB Interrupt{}: src
 '       0: INT_DRDY - Data ready
     readreg(core#INT_SOURCE, 1, @src)
 
-PUB IntMask(mask): curr_mask | opmode_orig
+PUB IntMask(mask): curr_mask
 ' Set interrupt mask
 '   Valid values:
 '       Bits [7..0] (OR together symbols, as needed)
@@ -807,19 +779,14 @@ PUB IntMask(mask): curr_mask | opmode_orig
     case mask
         %00000000..%10111101:
             mask &= core#CTRL_REG4_MASK
-            opmode_orig := accelopmode(-2)
-            if opmode_orig <> STDBY             ' must be in standby to change
-                accelopmode(STDBY)              '   control regs
-
+            cacheopmode{}                       ' switch to stdby to mod regs
             writereg(core#CTRL_REG4, 1, @mask)
-
-            if opmode_orig <> STDBY             ' restore original opmode
-                accelopmode(opmode_orig)
+            restoreopmode{}                     ' restore original opmode
         other:
             readreg(core#CTRL_REG4, 1, @curr_mask)
             return
 
-PUB IntRouting(mask): curr_mask | opmode_orig
+PUB IntRouting(mask): curr_mask
 ' Set routing of interrupt sources to INT1 or INT2 pin
 '   Valid values:
 '       Setting a bit routes the interrupt to INT1
@@ -838,14 +805,9 @@ PUB IntRouting(mask): curr_mask | opmode_orig
     case mask
         %00000000..%10111101:
             mask &= core#CTRL_REG5_MASK
-            opmode_orig := accelopmode(-2)
-            if opmode_orig <> STDBY             ' must be in standby to change
-                accelopmode(STDBY)              '   control regs
-
+            cacheopmode{}                       ' switch to stdby to mod regs
             writereg(core#CTRL_REG5, 1, @mask)
-
-            if opmode_orig <> STDBY             ' restore original opmode
-                accelopmode(opmode_orig)
+            restoreopmode{}                     ' restore original opmode
         other:
             readreg(core#CTRL_REG5, 1, @curr_mask)
             return
@@ -865,7 +827,7 @@ PUB Orientation{}: curr_or
     readreg(core#PL_STATUS, 1, @curr_or)
     return (curr_or & core#LAPOBAFRO_BITS)
 
-PUB OrientDetect(state): curr_state | opmode_orig
+PUB OrientDetect(state): curr_state
 ' Enable orientation detection
 '   Valid values: TRUE (-1 or 1), FALSE (0)
 '   Any other value polls the chip and returns the current setting
@@ -878,22 +840,27 @@ PUB OrientDetect(state): curr_state | opmode_orig
             return ((curr_state >> core#PL_EN) & 1) == 1
 
     state := ((curr_state & core#PL_EN_MASK) | state)
-
-    opmode_orig := accelopmode(-2)
-
-    if opmode_orig <> STDBY                     ' must be in standby to change
-        accelopmode(STDBY)                      '   control regs
-
+    cacheopmode{}                               ' switch to stdby to mod regs
     writereg(core#PL_CFG, 1, @state)
-
-    if opmode_orig <> STDBY                     ' restore original opmode
-        accelopmode(opmode_orig)
+    restoreopmode{}                             ' restore original opmode
 
 PUB Reset{} | tmp
 ' Reset the device
     tmp := core#RESET
     writereg(core#CTRL_REG2, 1, @tmp)
     time.usleep(core#T_POR)                     ' wait for device to come back
+
+PRI cacheOpMode{}
+' Store the current operating mode, and switch to standby if different
+'   (required for modifying some registers)
+    _opmode_orig := accelopmode(-2)
+    if _opmode_orig <> STDBY                    ' must be in standby to change
+        accelopmode(STDBY)                      '   control regs
+
+PRI restoreOpMode{}
+' Restore original operating mode
+    if _opmode_orig <> STDBY                    ' restore original opmode
+        accelopmode(_opmode_orig)
 
 PRI readReg(reg_nr, nr_bytes, ptr_buff) | cmd_pkt
 ' Read nr_bytes from the device into ptr_buff
