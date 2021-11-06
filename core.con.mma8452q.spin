@@ -5,7 +5,7 @@
     Description: Low-level constants
     Copyright (c) 2021
     Started May 9, 2021
-    Updated Oct 31, 2021
+    Updated Nov 6, 2021
     See end of file for terms of use.
     --------------------------------------------
 }
@@ -89,7 +89,23 @@ CON
     FF_MT_SRC           = $16
     FF_MT_THS           = $17
     FF_MT_CNT           = $18
+
     TRANSIENT_CFG       = $1D
+    TRANSIENT_CFG_MASK  = $3F
+        TELE            = 4
+        ZTEFE           = 3
+        YTEFE           = 2
+        XTEFE           = 1
+        TEFE            = 1
+        HPF_BYP         = 0
+        TEFE_BITS       = %111
+        TELE_MASK       = (1 << TELE) ^ TRANSIENT_CFG_MASK
+        ZTEFE_MASK      = (1 << ZTEFE) ^ TRANSIENT_CFG_MASK
+        YTEFE_MASK      = (1 << YTEFE) ^ TRANSIENT_CFG_MASK
+        XTEFE_MASK      = (1 << XTEFE) ^ TRANSIENT_CFG_MASK
+        TEFE_MASK       = (TEFE_BITS << ZTEFE) ^ TRANSIENT_CFG_MASK
+        HPF_BYP_MASK    = 1 ^ TRANSIENT_CFG_MASK
+
     TRANSIENT_SRC       = $1E
     TRANSIENT_THS       = $1F
     TRANSIENT_CNT       = $20
@@ -166,6 +182,22 @@ CON
         RESET           = 1 << RST
 
     CTRL_REG3           = $2C
+    CTRL_REG3_MASK      = $7B
+        WAKE_TRANS      = 6
+        WAKE_LNDPRT     = 5
+        WAKE_PULSE      = 4
+        WAKE_FF_MT      = 3
+        WAKE            = 3
+        IPOL            = 1
+        PP_OD           = 0
+        WAKE_BITS       = %1111
+        WAKE_TRANS_MASK = (1 << WAKE_TRANS) ^ CTRL_REG3_MASK
+        WAKE_LNDPRT_MASK= (1 << WAKE_LNDPRT) ^ CTRL_REG3_MASK
+        WAKE_PULSE_MASK = (1 << WAKE_PULSE) ^ CTRL_REG3_MASK
+        WAKE_FF_MT_MASK = (1 << WAKE_FF_MT) ^ CTRL_REG3_MASK
+        WAKE_MASK       = (WAKE_BITS << WAKE) ^ CTRL_REG3_MASK
+        IPOL_MASK       = (1 << IPOL) ^ CTRL_REG3_MASK
+        PP_OD_MASK      = 1 ^ CTRL_REG3_MASK
 
     CTRL_REG4           = $2D
     CTRL_REG4_MASK      = $BD
