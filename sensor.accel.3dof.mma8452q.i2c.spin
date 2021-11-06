@@ -42,6 +42,7 @@ CON
 ' Accelerometer operating modes
     STDBY           = 0
     ACTIVE          = 1
+    SLEEP           = 2
 
 ' Accelerometer power modes
     NORMAL          = 0
@@ -76,6 +77,12 @@ CON
 ' Low noise modes
 '   NORMAL          = 0
     LOWNOISE        = 1
+
+' Wake on interrupt sources
+    WAKE_TRANS      = 1 << 3
+    WAKE_ORIENT     = 1 << 2
+    WAKE_PULSE      = 1 << 1
+    WAKE_FFALL      = 1
 
 VAR
 
@@ -479,6 +486,62 @@ PUB AccelScale(scale): curr_scl
     writereg(core#XYZ_DATA_CFG, 1, @scale)
     restoreopmode{}                             ' restore original opmode
 
+PUB AccelSleepPwrMode(mode): curr_mode | opmode_orig
+' Set accelerometer power mode/oversampling mode, when sleeping
+'   Valid values:
+'       NORMAL (0): Normal
+'       LONOISE_LOPWR (1): Low noise low power
+'       HIGHRES (2): High resolution
+'       LOPWR (3): Low power
+'   Any other value polls the chip and returns the current setting
+    curr_mode := 0
+    readreg(core#CTRL_REG2, 1, @curr_mode)
+    case mode
+        NORMAL, LONOISE_LOPWR, HIGHRES, LOPWR:
+            mode <<= core#SMODS
+        other:
+            return ((curr_mode >> core#SMODS) & core#SMODS_BITS)
+
+    cacheopmode{}
+    mode := ((curr_mode & core#SMODS_MASK) | mode)
+    writereg(core#CTRL_REG2, 1, @mode)
+    restoreopmode{}
+
+PUB AutoSleep(state): curr_state | opmode_orig
+' Enable automatic transition to sleep state when inactive
+'   Valid values: TRUE (-1 or 1), FALSE (0)
+'   Any other value polls the chip and returns the current setting
+    curr_state := 0
+    readreg(core#CTRL_REG2, 1, @curr_state)
+    case ||(state)
+        0, 1:
+            state := ||(state) << core#SLPE
+        other:
+            return (((curr_state >> core#SLPE) & 1) == 1)
+
+    cacheopmode{}
+    state := ((curr_state & core#SLPE_MASK) | state)
+    writereg(core#CTRL_REG2, 1, @state)
+    restoreopmode{}
+
+PUB AutoSleepDataRate(rate): curr_rate | opmode_orig
+' Set accelerometer output data rate, in Hz, when in sleep mode
+'   Valid values: 1, 6, 12, 50
+'   Any other value polls the chip and returns the current setting
+    curr_rate := 0
+    readreg(core#CTRL_REG1, 1, @curr_rate)
+    case rate
+        1, 6, 12, 50:
+            rate := lookdownz(rate: 50, 12, 6, 1) << core#ASLP_RATE
+        other:
+            curr_rate := ((curr_rate >> core#ASLP_RATE) & core#ASLP_RATE_BITS)
+            return lookupz(curr_rate: 50, 12, 6, 1)
+
+    cacheopmode{}
+    rate := ((curr_rate & core#ASLP_RATE_MASK) | rate)
+    writereg(core#CTRL_REG1, 1, @rate)
+    restoreopmode{}
+
 PUB CalibrateAccel{} | acceltmp[ACCEL_DOF], axis, x, y, z, samples, scale_orig, drate_orig
 ' Calibrate the accelerometer
     longfill(@acceltmp, 0, 10)                  ' init variables to 0
@@ -746,6 +809,64 @@ PUB DeviceID{}: id
 '   Returns: $2A
     readreg(core#WHO_AM_I, 1, @id)
 
+PUB InactInt(mask): curr_mask | opmode_orig
+' Set inactivity interrupt mask
+'   Valid values:
+'       Bits [3..0]
+'       3: Wake on transient interrupt
+'       2: Wake on orientation interrupt
+'       1: Wake on pulse/click/tap interrupt
+'       0: Wake on free-fall/motion interrupt
+'   Any other value polls the chip and returns the current setting
+    curr_mask := 0
+    readreg(core#CTRL_REG3, 1, @curr_mask)
+    case mask
+        %0000..%1111:
+            mask <<= core#WAKE
+        other:
+            return ((curr_mask >> core#WAKE) & core#WAKE_BITS)
+
+    cacheopmode{}
+    mask := ((curr_mask & core#WAKE_MASK) | mask)
+    writereg(core#CTRL_REG3, 1, @mask)
+    restoreopmode{}
+
+PUB InactThresh(thresh): curr_thr
+' Set inactivity threshold, in micro-g's
+'   Valid values: TBD
+'   Any other value polls the chip and returns the current setting
+    curr_thr := 0
+    readreg(core#TRANSIENT_THS, 1, @curr_thr)
+    case thresh
+        0..$7f:
+            writereg(core#TRANSIENT_THS, 1, @thresh)
+        other:
+            return curr_thr
+
+PUB InactTime(itime): curr_itime | max_dur, time_res
+' Set inactivity time, in milliseconds
+'   Valid values:
+'       0..163_200 (AccelDataRate() == 1)
+'       0..81_600 (AccelDataRate() == all other settings)
+'   Any other value polls the chip and returns the current setting
+'   NOTE: Setting this to 0 will generate an interrupt when the acceleration
+'       measures less than that set with InactThresh()
+    if acceldatarate(-2) == 1
+        time_res := 640                         ' 640ms time step for 1Hz ODR
+    else
+        time_res := 320                         ' 320ms time step for others
+    max_dur := (time_res * 255)                 ' calc max possible duration
+    case itime
+        0..max_dur:
+            cacheopmode{}
+            itime := (itime / time_res)
+            writereg(core#ASLP_CNT, 1, @itime)
+            restoreopmode{}
+        other:
+            curr_itime := 0
+            readreg(core#ASLP_CNT, 1, @curr_itime)
+            return (curr_itime * time_res)
+
 PUB IntClear(mask)
 ' Clear interrupts, per clear_mask
 
@@ -849,6 +970,75 @@ PUB Reset{} | tmp
     tmp := core#RESET
     writereg(core#CTRL_REG2, 1, @tmp)
     time.usleep(core#T_POR)                     ' wait for device to come back
+
+PUB SysMode{}: sysmod 'XXX temporary
+' Read current system mode
+'   STDBY, ACTIVE, SLEEP
+    sysmod := 0
+    readreg(core#SYSMOD, 1, @sysmod)
+
+PUB TransCount(tcnt): curr_tcnt
+' Set minimum number of debounced samples that must be greater than the
+'   threshold set by TransThresh() to generate an interrupt
+'   Valid values: 0..255
+'   Any other value polls the chip and returns the current setting
+    case tcnt
+        0..255:
+            writereg(core#TRANSIENT_CNT, 1, @tcnt)
+        other:
+            curr_tcnt := 0
+            readreg(core#TRANSIENT_CNT, 1, @curr_tcnt)
+
+PUB TransAxisEnabled(axis_mask): curr_mask
+' Enable transient acceleration detection, per mask
+'   Valid values:
+'       Bits [2..0]
+'       2: Enable transient acceleration interrupt on Z-axis
+'       1: Enable transient acceleration interrupt on Y-axis
+'       0: Enable transient acceleration interrupt on X-axis
+'   Any other value polls the chip and returns the current setting
+    curr_mask := 0
+    readreg(core#TRANSIENT_CFG, 1, @curr_mask)
+    case axis_mask
+        %000..%111:
+            axis_mask <<= core#TEFE
+        other:
+            return ((curr_mask >> core#TEFE) & core#TEFE_MASK)
+
+    cacheopmode{}
+    axis_mask := ((curr_mask & core#TEFE_MASK) | axis_mask) | 1 << core#TELE
+    writereg(core#TRANSIENT_CFG, 1, @axis_mask)
+    restoreopmode{}
+
+PUB TransInterrupt{}: int_src
+' Read transient acceleration interrupt(s)
+'   Bits [6..0]
+'   6: One or more interrupts asserted
+'   5: Z-axis transient interrupt
+'   4: Z-axis transient interrupt polarity (0: positive, 1: negative)
+'   3: Y-axis transient interrupt
+'   2: Y-axis transient interrupt polarity (0: positive, 1: negative)
+'   1: X-axis transient interrupt
+'   0: X-axis transient interrupt polarity (0: positive, 1: negative)
+    int_src := 0
+    readreg(core#TRANSIENT_SRC, 1, @int_src)
+
+PUB TransThresh(thr): curr_thr
+' Set threshold for transient acceleration detection, in micro-g's
+'   Valid values: 0..8_001000 (0..8gs)
+'   Any other value polls the chip and returns the current setting
+'   NOTE: If AccelPowerMode() == LOWNOISE, the maximum value is reduced
+'       to 4g's (4_000000)
+    curr_thr := 0
+    readreg(core#TRANSIENT_THS, 1, @curr_thr)
+    case thr
+        0..8_001000:
+            thr /= 0_063000
+        other:
+            return ((curr_thr & core#THS_BITS) * 0_063000)
+
+    thr := ((curr_thr & core#THS_MASK) | thr)
+    writereg(core#TRANSIENT_THS, 1, @thr)
 
 PRI cacheOpMode{}
 ' Store the current operating mode, and switch to standby if different

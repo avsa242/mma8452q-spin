@@ -108,6 +108,13 @@ CON
 
     TRANSIENT_SRC       = $1E
     TRANSIENT_THS       = $1F
+    TRANSIENT_THS_MASK  = $FF
+        TDBCNTM         = 7
+        THS             = 0
+        THS_BITS        = %1111111
+        TDBCNTM_MASK    = (1 << TDBCNTM) ^ TRANSIENT_THS_MASK
+        THS_MASK        = THS_BITS ^ TRANSIENT_THS_MASK
+
     TRANSIENT_CNT       = $20
 
     PULSE_CFG           = $21
