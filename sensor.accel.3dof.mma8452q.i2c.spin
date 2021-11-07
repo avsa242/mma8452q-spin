@@ -132,7 +132,7 @@ PUB Preset_Active{}
     accelscale(2)
 
 PUB Preset_ClickDet{}
-' Preset for click detection
+' Preset settings for click detection
     reset{}
     acceldatarate(400)
     accelscale(2)
@@ -146,6 +146,18 @@ PUB Preset_ClickDet{}
     intmask(INT_PULSE)                          ' enable click/pulse interrupts
     introuting(INT_PULSE)                       ' route click ints to INT1 pin
     accelopmode(ACTIVE)
+
+PUB Preset_FreeFall{}
+' Preset settings for free-fall detection
+    reset{}
+    acceldatarate(400)
+    accelscale(2)
+    freefalltime(30_000)                        ' 30_000us/30ms min time
+    freefallthresh(0_315000)                    ' 0.315g's
+    freefallaxisenabled(%111)                   ' all axes
+    accelopmode(ACTIVE)
+    intmask(INT_FFALL)                          ' enable free-fall interrupt
+    introuting(INT_FFALL)                       ' route free-fall ints to INT1
 
 PUB AccelADCRes(adc_res): curr_res
 ' dummy method
@@ -809,6 +821,72 @@ PUB DeviceID{}: id
 '   Returns: $2A
     readreg(core#WHO_AM_I, 1, @id)
 
+PUB FreeFallAxisEnabled(mask): curr_mask
+' Enable free-fall detection, per axis mask
+'   Valid values: %000..%111 (ZYX)
+'   Any other value polls the chip and returns the current setting
+    curr_mask := 0
+    readreg(core#FF_MT_CFG, 1, @curr_mask)
+    case mask
+        %000..%111:
+            mask <<= core#FEFE
+        other:
+            return ((curr_mask >> core#FEFE) & core#FEFE_BITS)
+
+    mask := ((curr_mask & core#FEFE_MASK) | mask)
+    writereg(core#FF_MT_CFG, 1, @mask)
+
+PUB FreeFallThresh(thresh): curr_thr
+' Set free-fall threshold, in micro-g's
+'   Valid values: 0..8_001000 (0..8g's)
+'   Any other value polls the chip and returns the current setting
+    curr_thr := 0
+    readreg(core#FF_MT_THS, 1, @curr_thr)
+    case thresh
+        0..8_001000:
+            thresh /= 0_063000
+        other:
+            return ((curr_thr & core#FF_THS_BITS) * 0_063000)
+
+    thresh := ((curr_thr & core#FF_THS_MASK) | thresh)
+    writereg(core#FF_MT_THS, 1, @thresh)
+
+PUB FreeFallTime(fftime): curr_time | odr, time_res, max_dur
+' Set minimum time duration required to recognize free-fall, in microseconds
+'   Valid values: 0..maximum in table below:
+'                           AccelPowerMode():
+'       AccelDataRate():    NORMAL     LONOISE_LOPWR   HIGHRES     LOPWR
+'       800Hz               319_000    319_000         319_000     319_000
+'       400                 638_000    638_000         638_000     638_000
+'       200                 1_280      1_280           638_000     1_280
+'       100                 2_550      2_550           638_000     2_550
+'       50                  5_100      5_100           638_000     5_100
+'       12                  5_100      20_400          638_000     20_400
+'       6                   5_100      20_400          638_000     40_800
+'       1                   5_100      20_400          638_000     40_800
+'   Any other value polls the chip and returns the current setting
+    odr := acceldatarate(-2)
+    case accelpowermode(-2)
+        NORMAL:
+            time_res := 1_250 #> (1_000000/odr) <# 20_000
+        LONOISE_LOPWR:
+            time_res := 1_250 #> (1_000000/odr) <# 80_000
+        HIGHRES:
+            time_res := 1_250 #> (1_000000/odr) <# 2_500
+        LOPWR:
+            time_res := 1_250 #> (1_000000/odr) <# 160_000
+
+    max_dur := (time_res * 255)
+
+    case fftime
+        0..max_dur:
+            fftime /= time_res
+            writereg(core#FF_MT_CNT, 1, @fftime)
+        other:
+            curr_time := 0
+            readreg(core#FF_MT_CNT, 1, @curr_time)
+            return (curr_time * time_res)
+
 PUB InactInt(mask): curr_mask | opmode_orig
 ' Set inactivity interrupt mask
 '   Valid values:
@@ -866,6 +944,15 @@ PUB InactTime(itime): curr_itime | max_dur, time_res
             curr_itime := 0
             readreg(core#ASLP_CNT, 1, @curr_itime)
             return (curr_itime * time_res)
+
+PUB InFreeFall{}: flag
+' Flag indicating device is in free-fall
+'   Returns:
+'       TRUE (-1): device is in free-fall
+'       FALSE (0): device isn't in free-fall
+    flag := 0
+    readreg(core#FF_MT_SRC, 1, @flag)
+    return (((flag >> core#FEA) & 1) == 1)
 
 PUB IntClear(mask)
 ' Clear interrupts, per clear_mask

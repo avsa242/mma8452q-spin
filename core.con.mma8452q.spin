@@ -2,10 +2,10 @@
     --------------------------------------------
     Filename: core.con.mma8452q.spin
     Author: Jesse Burt
-    Description: Low-level constants
+    Description: MMA8452Q-specific constants
     Copyright (c) 2021
     Started May 9, 2021
-    Updated Nov 6, 2021
+    Updated Nov 7, 2021
     See end of file for terms of use.
     --------------------------------------------
 }
@@ -77,17 +77,46 @@ CON
 
     PL_CFG              = $11
     PL_CFG_MASK         = $C0
-        DBCNTM          = 7
+        PDBCNTM         = 7
         PL_EN           = 6
-        DBCNTM_MASK     = (1 << DBCNTM) ^ PL_CFG_MASK
+        PDBCNTM_MASK    = (1 << PDBCNTM) ^ PL_CFG_MASK
         PL_EN_MASK      = 1 ^ PL_CFG_MASK
 
     PL_COUNT            = $12
     PL_BF_ZCOMP         = $13
     P_L_THS_REG         = $14
+
     FF_MT_CFG           = $15
+    FF_MT_CFG_MASK      = $F8
+        FELE            = 7
+        FOAE            = 6
+        FZEFE           = 5
+        FYEFE           = 4
+        FXEFE           = 3
+        FEFE            = 3
+        FEFE_BITS       = %111
+        FELE_MASK       = (1 << FELE) ^ FF_MT_CFG_MASK
+        FOAE_MASK       = (1 << FOAE) ^ FF_MT_CFG_MASK
+        FEFE_MASK       = FEFE_BITS ^ FF_MT_CFG_MASK
+
     FF_MT_SRC           = $16
+    FF_MT_SRC_MASK      = $BF
+        FEA             = 7
+        ZHE             = 5
+        ZHP             = 4
+        YHE             = 3
+        YHP             = 2
+        XHE             = 1
+        XHP             = 0
+
     FF_MT_THS           = $17
+    FF_MT_THS_MASK      = $FF
+        FDBCNTM         = 7
+        FF_THS          = 0
+        FF_THS_BITS     = %1111111
+        FDBCNTM_MASK    = (1 << FDBCNTM) ^ FF_MT_THS_MASK
+        FF_THS_MASK     = FF_THS_BITS ^ FF_MT_THS_MASK
+
     FF_MT_CNT           = $18
 
     TRANSIENT_CFG       = $1D

@@ -1,11 +1,11 @@
 {
     --------------------------------------------
-    Filename: MMA8452Q-AutoSleepDemo.spin
+    Filename: MMA8452Q-FreeFall-Demo.spin
     Author: Jesse Burt
     Description: Demo of the MMA8452Q driver
-        Auto-sleep functionality
+        Free-fall detection functionality
     Copyright (c) 2021
-    Started Nov 6, 2021
+    Started Nov 7, 2021
     Updated Nov 7, 2021
     See end of file for terms of use.
     --------------------------------------------
@@ -20,11 +20,12 @@ CON
     LED         = cfg#LED1
     SER_BAUD    = 115_200
 
+' I2C configuration
     SCL_PIN     = 28
     SDA_PIN     = 29
     I2C_HZ      = 400_000                       ' max is 400_000
 
-    INT1        = 16                            ' MMA8452Q INT1 pin
+    INT1        = 16
 ' --
 
     DAT_X_COL   = 20
@@ -36,57 +37,47 @@ OBJ
     cfg     : "core.con.boardcfg.flip"
     ser     : "com.serial.terminal.ansi"
     time    : "time"
-    int     : "string.integer"
     accel   : "sensor.accel.3dof.mma8452q.i2c"
-    core    : "core.con.mma8452q"
+    int     : "string.integer"
 
 VAR
 
     long _isr_stack[50]                         ' stack for ISR core
     long _intflag                               ' interrupt flag
 
-PUB Main{} | intsource, temp, sysmod
+PUB Main{} | intsource, temp
 
     setup{}
-    accel.preset_active{}                       ' default settings, but enable
-                                                ' sensor power, and set
-                                                ' scale factors
-
-    accel.autosleep(true)                       ' enable auto-sleep
-    accel.accelsleeppwrmode(accel#LOPWR)        ' lo-power mode when sleeping
-    accel.accelpowermode(accel#HIGHRES)         ' high-res mode when awake
-    accel.transaxisenabled(%011)                ' transient detection on X, Y
-    accel.transthresh(0_252000)                 ' set thresh to 0.252g (0..8g)
-    accel.transcount(0)                         ' reset counter
-    accel.inacttime(5_120)                      ' inactivity timeout ~5sec
-    accel.inactint(accel#WAKE_TRANS)            ' wake on transient accel
-    accel.intmask(accel#INT_AUTOSLPWAKE | accel#INT_TRANS)
-    accel.introuting(accel#INT_AUTOSLPWAKE | accel#INT_TRANS)
-    accel.acceldatarate(100)                    ' 100Hz ODR when active
-    accel.autosleepdatarate(6)                  ' 6Hz ODR when sleeping
-    dira[LED] := 1
+    accel.preset_freefall{}                     ' default settings, but enable
+                                                ' sensors, set scale factors,
+                                                ' and free-fall parameters
+    ser.position(0, 5)
+    ser.str(string("Sensor stable       "))
 
     ' The demo continuously displays the current accelerometer data.
-    ' When the sensor goes to sleep after approx. 5 seconds, the change
-    '   in data rate is visible as a slowed update of the display.
-    ' To wake the sensor, shake it along the X and/or Y axes
-    '   by at least 0.252g's.
-    ' When the sensor is awake, the LED should be on.
-    ' When the sensor goes to sleep, it should turn off.
+    ' When the sensor detects free-fall, a message is displayed and
+    '   is cleared after the user presses a key
+    ' The preset for free-fall detection sets a free-fall threshold of
+    '   0.315g's for a minimum time of 30ms. This can be tuned using
+    '   accel.FreeFallThresh() and accel.FreeFallTime():
+    accel.freefallthresh(0_315000)              ' 0.315g's
+    accel.freefalltime(30_000)                  ' 30_000us/30ms
     repeat
         ser.position(0, 3)
         accelcalc{}                             ' show accel data
         if _intflag                             ' interrupt triggered
             intsource := accel.interrupt{}
-            if (intsource & accel#INT_TRANS)    ' transient acceleration event
-                temp := accel.transinterrupt{}  ' clear the trans. interrupt
-            if (intsource & accel#INT_AUTOSLPWAKE)
-                sysmod := accel.sysmode{}
-                if (sysmod & accel#SLEEP)       ' op. mode is sleep,
-                    outa[LED] := 0              '   so turn LED off
-                elseif (sysmod & accel#ACTIVE)  ' else active,
-                    outa[LED] := 1              '   turn it on
-
+            if (intsource & accel#INT_FFALL)    ' free-fall event
+                temp := accel.infreefall{}      ' clear the free-fall interrupt
+            ser.position(0, 5)
+            ser.strln(string("Sensor in free-fall!"))
+            ser.str(string("Press any key to reset"))
+            ser.charin{}
+            ser.positionx(0)
+            ser.clearline{}
+            ser.position(0, 5)
+            ser.str(string("Sensor stable       "))
+            
         if ser.rxcheck{} == "c"                 ' press the 'c' key in the demo
             calibrate{}                         ' to calibrate sensor offsets
 
@@ -106,7 +97,7 @@ PUB AccelCalc{} | ax, ay, az
 
 PUB Calibrate{}
 
-    ser.position(0, 5)
+    ser.position(0, 7)
     ser.str(string("Calibrating..."))
     accel.calibrateaccel{}
     ser.positionx(0)
@@ -153,8 +144,9 @@ PUB Setup{}
     time.msleep(30)
     ser.clear{}
     ser.strln(string("Serial terminal started"))
+
     if accel.startx(SCL_PIN, SDA_PIN, I2C_HZ)
-        ser.strln(string("MMA8452Q driver started (I2C)"))
+        ser.strln(string("MMA8452Q driver started"))
     else
         ser.strln(string("MMA8452Q driver failed to start - halting"))
         repeat
