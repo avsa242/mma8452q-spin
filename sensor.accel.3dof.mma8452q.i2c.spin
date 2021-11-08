@@ -18,6 +18,7 @@ CON
     DEF_SCL         = 28
     DEF_SDA         = 29
     DEF_HZ          = 100_000
+    DEF_ADDR        = 0
     I2C_MAX_FREQ    = core#I2C_MAX_FREQ
 
 ' Indicate to user apps how many Degrees of Freedom each sub-sensor has
@@ -89,6 +90,7 @@ VAR
     long _ares
     long _abiasraw[ACCEL_DOF]
     byte _opmode_orig
+    byte _addr_bits
 
 OBJ
 
@@ -101,15 +103,18 @@ PUB Null{}
 
 PUB Start{}: status
 ' Start using "standard" Propeller I2C pins and 100kHz
-    return startx(DEF_SCL, DEF_SDA, DEF_HZ)
+    return startx(DEF_SCL, DEF_SDA, DEF_HZ, DEF_ADDR)
 
-PUB Startx(SCL_PIN, SDA_PIN, I2C_HZ): status
+PUB Startx(SCL_PIN, SDA_PIN, I2C_HZ, ADDR_BITS): status
 ' Start using custom IO pins and I2C bus frequency
+    ' validate I/O pins, bus freq, and I2C address bit(s)
     if lookdown(SCL_PIN: 0..31) and lookdown(SDA_PIN: 0..31) and {
-}   I2C_HZ =< core#I2C_MAX_FREQ                 ' validate pins and bus freq
+}   I2C_HZ =< core#I2C_MAX_FREQ and lookdown(ADDR_BITS: 0, 1)
         if (status := i2c.init(SCL_PIN, SDA_PIN, I2C_HZ))
             time.usleep(core#T_POR)             ' wait for device startup
-            if i2c.present(SLAVE_WR)            ' test device bus presence
+            _addr_bits := ADDR_BITS << 1
+            ' test device bus presence
+            if i2c.present(SLAVE_WR | _addr_bits)
                 if deviceid{} == core#DEVID_RESP' validate device 
                     return
     ' if this point is reached, something above failed
@@ -1166,12 +1171,12 @@ PRI readReg(reg_nr, nr_bytes, ptr_buff) | cmd_pkt
     case reg_nr                                 ' validate register num
         core#OUT_X_MSB, core#OUT_Y_MSB, core#OUT_Z_MSB, {
 }       core#STATUS, core#SYSMOD..core#FF_MT_CNT, core#TRANSIENT_CFG..core#OFF_Z:
-            cmd_pkt.byte[0] := SLAVE_WR
+            cmd_pkt.byte[0] := (SLAVE_WR | _addr_bits)
             cmd_pkt.byte[1] := reg_nr
             i2c.start{}
             i2c.wrblock_lsbf(@cmd_pkt, 2)
             i2c.start{}
-            i2c.wr_byte(SLAVE_RD)
+            i2c.wr_byte(SLAVE_RD | _addr_bits)
             i2c.rdblock_msbf(ptr_buff, nr_bytes, i2c#NAK)
             i2c.stop{}
         other:                                  ' invalid reg_nr
@@ -1183,7 +1188,7 @@ PRI writeReg(reg_nr, nr_bytes, ptr_buff) | cmd_pkt
         core#XYZ_DATA_CFG, core#HP_FILT_CUTOFF, core#PL_CFG, core#FF_MT_CFG, {
 }       core#FF_MT_THS, core#FF_MT_CNT, core#TRANSIENT_CFG, {
 }       core#TRANSIENT_THS..core#PULSE_CFG, core#PULSE_THSX..core#OFF_Z:
-            cmd_pkt.byte[0] := SLAVE_WR
+            cmd_pkt.byte[0] := (SLAVE_WR | _addr_bits)
             cmd_pkt.byte[1] := reg_nr
             i2c.start{}
             i2c.wrblock_lsbf(@cmd_pkt, 2)

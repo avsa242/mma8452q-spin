@@ -5,7 +5,7 @@
     Description: MMA8452Q-specific constants
     Copyright (c) 2021
     Started May 9, 2021
-    Updated Nov 7, 2021
+    Updated Nov 8, 2021
     See end of file for terms of use.
     --------------------------------------------
 }
@@ -14,7 +14,7 @@ CON
 
 ' I2C Configuration
     I2C_MAX_FREQ        = 400_000                   ' device max I2C bus freq
-    SLAVE_ADDR          = $1D << 1                  ' 7-bit format slave address
+    SLAVE_ADDR          = $1C << 1                  ' 7-bit format slave address
     T_POR               = 2_000                     ' startup time (usecs)
 
     DEVID_RESP          = $2A                       ' device ID expected response

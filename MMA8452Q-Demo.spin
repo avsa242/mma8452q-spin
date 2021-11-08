@@ -22,6 +22,7 @@ CON
     SCL_PIN     = 28
     SDA_PIN     = 29
     I2C_HZ      = 400_000                       ' max is 400_000
+    ADDR_BITS   = 0                             ' 0, 1
 ' --
 
     DAT_X_COL   = 20
@@ -104,7 +105,7 @@ PUB Setup{}
     time.msleep(30)
     ser.clear{}
     ser.strln(string("Serial terminal started"))
-    if accel.startx(SCL_PIN, SDA_PIN, I2C_HZ)
+    if accel.startx(SCL_PIN, SDA_PIN, I2C_HZ, ADDR_BITS)
         ser.strln(string("MMA8452Q driver started (I2C)"))
     else
         ser.strln(string("MMA8452Q driver failed to start - halting"))
