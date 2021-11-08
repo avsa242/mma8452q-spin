@@ -5,7 +5,7 @@
     Description: Driver for the MMA8452Q 3DoF accelerometer
     Copyright (c) 2021
     Started May 09, 2021
-    Updated Nov 6, 2021
+    Updated Nov 8, 2021
     See end of file for terms of use.
     --------------------------------------------
 }
@@ -497,6 +497,28 @@ PUB AccelScale(scale): curr_scl
     cacheopmode{}                               ' switch to stdby to mod regs
     writereg(core#XYZ_DATA_CFG, 1, @scale)
     restoreopmode{}                             ' restore original opmode
+
+PUB AccelSelfTest(state): curr_state
+' Enable accelerometer self-test
+'   Valid values: TRUE (-1 or 1), FALSE (0)
+'   Any other value polls the chip and returns the current setting
+'   During self-test, the output data changes approximately as follows
+'       (typ. values @ 4g full-scale)
+'       X: +0.085g (44LSB * 1953 micro-g per LSB)
+'       Y: +0.119g (61LSB * 1953 micro-g per LSB)
+'       Z: +0.765g (392LSB * 1953 micro-g per LSB)
+    curr_state := 0
+    readreg(core#CTRL_REG2, 1, @curr_state)
+    case ||(state)
+        0, 1:
+            state := ||(state) << core#ST
+        other:
+            return (((curr_state >> core#ST) & 1) == 1)
+
+    cacheopmode{}
+    state := ((curr_state & core#ST_MASK) | state)
+    writereg(core#CTRL_REG2, 1, @state)
+    restoreopmode{}
 
 PUB AccelSleepPwrMode(mode): curr_mode | opmode_orig
 ' Set accelerometer power mode/oversampling mode, when sleeping
