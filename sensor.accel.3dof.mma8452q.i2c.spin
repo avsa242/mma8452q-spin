@@ -668,8 +668,8 @@ PUB ClickIntEnabled(state): curr_state
 
 PUB ClickLatency(ltime): curr_ltime | time_res, odr
 '   Set minimum elapsed time from detection of first click to recognition of
-'       any subsequent clicks (single or double). All clicks *during* this time
-'       will be ignored.
+'       any subsequent clicks (single or double), in microseconds. All clicks
+'       *during* this time will be ignored.
 '   Valid values:
 '                                   Max time range
 '                           ClickLPFEnabled()

@@ -8,15 +8,21 @@ This is a P8X32A/Propeller, ~~P2X8C4M64P/Propeller 2~~ driver object for the MMA
 ## Salient Features
 
 * I2C connection at up to 400kHz
+* Supports default or alternate I2C address
 * Manually or automatically set bias offsets (on-chip)
+* Accelerometer built-in self-test
 * Read accelerometer data in ADC words or micro-g's
-* Set output data rate
+* Set output data rate (in active and low-power operating modes)
 * Set power state
 * Set accelerometer full-scale
-* Set interrupt flags
-* Orientation detection
+* Set interrupt flags, INT1/2 pin active state
+* Set accelerometer data oversampling/power mode (in active and low-power operating modes)
+* Output data filtering: high-pass
 * Read flags: accelerometer data ready, data overrun, interrupts
-* Click detection
+* Orientation detection
+* Click/Pulse/Tap detection
+* Free-fall detection
+* Inactivity detection/auto-sleep
 
 ## Requirements
 
@@ -40,5 +46,4 @@ P2/SPIN2:
 ## Limitations
 
 * Very early in development - may malfunction, or outright fail to build
-* Some click-related settings do not have scaled parameters yet and just take register values
 
