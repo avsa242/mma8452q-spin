@@ -85,6 +85,10 @@ CON
     WAKE_PULSE      = 1 << 1
     WAKE_FFALL      = 1
 
+' Interrupt active state
+    LOW             = 0
+    HIGH            = 1
+
 VAR
 
     long _ares
@@ -980,6 +984,23 @@ PUB InFreeFall{}: flag
     flag := 0
     readreg(core#FF_MT_SRC, 1, @flag)
     return (((flag >> core#FEA) & 1) == 1)
+
+PUB IntActiveState(state): curr_state
+' Set interrupt pin active state/logic level
+'   Valid values: LOW (0), HIGH (1)
+'   Any other value polls the chip and returns the current setting
+    curr_state := 0
+    readreg(core#CTRL_REG3, 1, @curr_state)
+    case state
+        LOW, HIGH:
+            state <<= core#IPOL
+        other:
+            return ((curr_state >> core#IPOL) & 1)
+
+    cacheopmode{}
+    state := ((curr_state & core#IPOL_MASK) | state)
+    writereg(core#CTRL_REG3, 1, @state)
+    restoreopmode{}
 
 PUB IntClear(mask)
 ' Clear interrupts, per clear_mask
