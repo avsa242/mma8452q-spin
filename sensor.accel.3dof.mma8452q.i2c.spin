@@ -247,6 +247,7 @@ PUB AccelDataRate(rate): curr_rate
 
 PUB AccelDataReady{}: flag
 ' Flag indicating new accelerometer data available
+    flag := 0
     readreg(core#STATUS, 1, @flag)
     return ((flag & core#ZYX_DR) <> 0)
 
