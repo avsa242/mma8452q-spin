@@ -99,7 +99,6 @@ OBJ
 
     i2c : "com.i2c"                             ' I2C engine (up to 1MHz)
     core: "core.con.mma8452q"                   ' hw-specific low-level const's
-    time: "time"                                ' basic timing functions
 
 PUB Null()
 ' This is not a top-level object
