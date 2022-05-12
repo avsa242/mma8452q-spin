@@ -5,7 +5,7 @@
     Description: Driver for the MMA8452Q 3DoF accelerometer
     Copyright (c) 2022
     Started May 9, 2021
-    Updated May 11, 2022
+    Updated May 12, 2022
     See end of file for terms of use.
     --------------------------------------------
 }
@@ -542,10 +542,6 @@ PUB AccelSleepPwrMode(mode): curr_mode
     writereg(core#CTRL_REG2, 1, @mode)
     restoreopmode{}
 
-PUB AccelWord2G(accel_word): g
-' Convert from accelerometer ADC word to g's
-    return (accel_word * _ares)
-
 PUB AutoSleep(state): curr_state
 ' Enable automatic transition to sleep state when inactive
 '   Valid values: TRUE (-1 or 1), FALSE (0)
@@ -905,9 +901,6 @@ PUB GyroOpMode(mode)
 PUB GyroScale(scale)
 ' Dummy method
 
-PUB GyroWord2DPS(gyro_word)
-' Dummy method
-
 PUB InactInt(mask): curr_mask
 ' Set inactivity interrupt mask
 '   Valid values:
@@ -1075,24 +1068,6 @@ PUB MagOpMode(mode)
 
 PUB MagScale(scale)
 ' Dummy method
-
-PUB MagXWord2Gauss(mag_word): mag_gauss
-' dummy method
-
-PUB MagYWord2Gauss(mag_word): mag_gauss
-' dummy method
-
-PUB MagZWord2Gauss(mag_word): mag_gauss
-' dummy method
-
-PUB MagXWord2Tesla(mag_word): mag_tesla
-' dummy method
-
-PUB MagYWord2Tesla(mag_word): mag_tesla
-' dummy method
-
-PUB MagZWord2Tesla(mag_word): mag_tesla
-' dummy method
 
 PUB Orientation{}: curr_or
 ' Current orientation
