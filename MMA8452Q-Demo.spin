@@ -22,7 +22,7 @@ CON
     SCL_PIN     = 28
     SDA_PIN     = 29
     I2C_FREQ    = 400_000                       ' max is 400_000
-    ADDR_BITS   = 0                             ' 0, 1
+    ADDR_BITS   = 1                             ' 0, 1
 ' --
 
     DAT_X_COL   = 20
