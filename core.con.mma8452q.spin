@@ -258,7 +258,7 @@ CON
     OFF_Y               = $30
     OFF_Z               = $31
 
-PUB Null{}
+PUB null{}
 ' This is not a top-level object
 
 DAT

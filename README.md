@@ -42,7 +42,7 @@ P2/SPIN2:
 | P1        | SPIN1    | FlexSpin (5.9.14-beta) | Bytecode    | OK                    |
 | P1        | SPIN1    | FlexSpin (5.9.14-beta) | Native code | OK                    |
 | P1        | SPIN1    | OpenSpin (1.00.81)     | Bytecode    | Untested (deprecated) |
-| P2        | SPIN2    | FlexSpin (5.9.14-beta) | NuCode      | OK                    |
+| P2        | SPIN2    | FlexSpin (5.9.14-beta) | NuCode      | FTBFS                 |
 | P2        | SPIN2    | FlexSpin (5.9.14-beta) | Native code | OK                    |
 | P1        | SPIN1    | Brad's Spin Tool (any) | Bytecode    | Unsupported           |
 | P1, P2    | SPIN1, 2 | Propeller Tool (any)   | Bytecode    | Unsupported           |
