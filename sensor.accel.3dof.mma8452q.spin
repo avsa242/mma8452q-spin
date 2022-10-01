@@ -92,6 +92,7 @@ CON
 
 VAR
 
+    long _accel_time_res
     byte _opmode_orig
     byte _addr_bits
 
@@ -139,7 +140,7 @@ PUB defaults{}
     reset{}
 
 PUB preset_active{}
-' Like Defaults(), but enable sensor power, and set scale
+' Like defaults(), but enable sensor power, and set scale
     reset{}
     accel_opmode(ACTIVE)
     accel_scale(2)
@@ -150,12 +151,12 @@ PUB preset_clickdet{}
     accel_data_rate(400)
     accel_scale(2)
     click_axis_ena(%111111)                     ' enable X, Y, Z single tap det
-    click_thresh_x(1_575000)                    ' X: 1.575g thresh
-    click_thresh_y(1_575000)                    ' Y: 1.575g
-    click_thresh_z(2_650000)                    ' Z: 2.650g
-    click_time(50_000)
-    click_latency(300_000)
-    dbl_click_win(300_000)
+    click_set_thresh_x(1_575000)                    ' X: 1.575g thresh
+    click_set_thresh_y(1_575000)                    ' Y: 1.575g
+    click_set_thresh_z(2_650000)                    ' Z: 2.650g
+    click_set_time(50_000)
+    click_set_latency(300_000)
+    dbl_click_set_win(300_000)
     int_mask(INT_PULSE)                         ' enable click/pulse interrupts
     int_routing(INT_PULSE)                      ' route click ints to INT1 pin
     accel_opmode(ACTIVE)
@@ -215,6 +216,10 @@ PUB accel_data_rate(rate): curr_rate
     readreg(core#CTRL_REG1, 1, @curr_rate)
     case rate
         1, 6, 12, 50, 100, 200, 400, 800:
+            if (click_lpf_ena(-2))
+                _accel_time_res := 2_500 #> ((1_000000 / rate) * 2) <# 40_000
+            else
+                _accel_time_res := 1_250 #> ((1_000000 / rate) / 2) <# 10_000
             rate := lookdownz(rate: 800, 400, 200, 100, 50, 12, 6, 1) << core#DR
         other:
             curr_rate := (curr_rate >> core#DR) & core#DR_BITS
@@ -249,26 +254,26 @@ PUB accel_hpf_ena(state): curr_state
 PUB accel_hpf_freq(freq): curr_freq
 ' Set accelerometer data high-pass cutoff frequency, in milli-Hz
 '   Valid values:
-'   AccelPowerMode(): NORMAL
-'   AccelDataRate():    800, 400    200     100     50, 12, 6, 1
+'   accel_pwr_mode(): NORMAL
+'   accel_data_rate():    800, 400    200     100     50, 12, 6, 1
 '                       16_000      8_000   4_000   2_000
 '                       8_000       4_000   2_000   1_000
 '                       4_000       2_000   1_000   500
 '                       2_000       1_000   500     250
-'   AccelPowerMode(): LONOISE_LOPWR
-'   AccelDataRate():    800, 400    200     100     50      12, 6, 1
+'   accel_pwr_mode(): LONOISE_LOPWR
+'   accel_data_rate():    800, 400    200     100     50      12, 6, 1
 '                       16_000      8_000   4_000   2_000   500
 '                       8_000       4_000   2_000   1_000   250
 '                       4_000       2_000   1_000   500     125
 '                       2_000       1_000   500     250     63
-'   AccelPowerMode(): HIGHRES
-'   AccelDataRate():    All
+'   accel_pwr_mode(): HIGHRES
+'   accel_data_rate():    All
 '                       16_000
 '                       8_000
 '                       4_000
 '                       2_000
-'   AccelPowerMode(): LOPWR
-'   AccelDataRate():    800     400     200     100     50      12, 6, 1
+'   accel_pwr_mode(): LOPWR
+'   accel_data_rate():    800     400     200     100     50      12, 6, 1
 '                       16_000  8_000   4_000   2_000   1_000   250
 '                       8_000   4_000   2_000   1_000   500     125
 '                       4_000   2_000   1_000   500     250     63
@@ -394,9 +399,6 @@ PUB accel_hpf_freq(freq): curr_freq
                             return lookupz(curr_freq: 250, 125, 63, 31)
     freq := ((curr_freq & core#SEL_MASK) | freq)
     writereg(core#HP_FILT_CUTOFF, 1, @freq)
-
-PUB accel_int{}: flag
-' Flag indicating accelerometer interrupt asserted
 
 PUB accel_lownoise_mode(mode): curr_mode    'XXX tentatively named
 ' Set accelerometer low noise mode
@@ -604,14 +606,21 @@ PUB click_int_ena(state): curr_state
     state := ((curr_state & core#IE_PULSE_MASK) | state)
     writereg(core#CTRL_REG4, 1, @state)
 
-PUB click_latency(ltime): curr_ltime | time_res, odr
+PUB click_latency{}: curr_ltime
+' Get minimum elapsed time from detection of first click to recognition of any subsequent clicks
+'   (single or double). All clicks *during* this time will be ignored.
+'   Returns: microseconds
+    readreg(core#PULSE_LTCY, 1, @curr_ltime)
+    return (curr_ltime * _accel_time_res)
+
+PUB click_set_latency(ltime)
 '   Set minimum elapsed time from detection of first click to recognition of
 '       any subsequent clicks (single or double), in microseconds. All clicks
 '       *during* this time will be ignored.
 '   Valid values:
 '                                   Max time range
-'                           ClickLPFEnabled()
-'       AccelDataRate():    == 0        == 1
+'                           click_lpf_ena()
+'       accel_data_rate():    == 0        == 1
 '       800                 318_000     638_000
 '       400                 318_000     1_276_000
 '       200                 638_000     2_560_000
@@ -621,22 +630,10 @@ PUB click_latency(ltime): curr_ltime | time_res, odr
 '       6                   2_560_000   10_200_000
 '       1                   2_560_000   10_200_000
 '   Any other value polls the chip and returns the current setting
-    ' calc time resolution (in microseconds) based on AccelDataRate() (1/ODR),
-    '   then limit to range spec'd in AN4072
-    odr := accel_data_rate(-2)
-    if click_lpf_ena(-2)
-        time_res := 2_500 #> ((1_000000/odr) * 2) <# 40_000
-    else
-        time_res := 1_250 #> ((1_000000/odr) / 2) <# 10_000
-
     ' check that the parameter is between 0 and the max time range for
-    '   the current AccelDataRate() setting
-    if (ltime => 0) and (ltime =< (time_res * 255))
-        ltime /= time_res
-        writereg(core#PULSE_LTCY, 1, @ltime)
-    else
-        readreg(core#PULSE_LTCY, 1, @curr_ltime)
-        return (curr_ltime * time_res)
+    '   the current accel_data_rate() setting
+    ltime := (0 #> ltime <# (_accel_time_res * 255)) / _accel_time_res
+    writereg(core#PULSE_LTCY, 1, @ltime)
 
 PUB click_lpf_ena(state): curr_state
 ' Enable click detection low-pass filter
@@ -653,80 +650,88 @@ PUB click_lpf_ena(state): curr_state
     state := ((curr_state & core#PLS_LPF_EN_MASK) | state)
     writereg(core#HP_FILT_CUTOFF, 1, @state)
 
-PUB click_thresh(thresh): curr_thresh
+PUB click_thresh{}: thresh
+
+PUB click_set_thresh(thresh)
 ' Set threshold for recognizing a click (all axes), in micro-g's
 '   Valid values:
 '       0..8_000000 (8g's)
 '   NOTE: The allowed range is fixed at 8g's, regardless of the current
-'       setting of AccelScale()
-'   NOTE: If AccelLowNoiseMode() is set to LOWNOISE, the maximum threshold
+'       setting of accel_scale()
+'   NOTE: If accel_low_noise_mode() is set to LOWNOISE, the maximum threshold
 '       recognized using this method will be 4_000000 (4g's)
-    case thresh
-        0..8_000000:
-            click_thresh_x(thresh)
-            click_thresh_y(thresh)
-            click_thresh_z(thresh)
-        other:
-            return
+    thresh := 0 #> thresh <# 8_000000
+    click_set_thresh_x(thresh)
+    click_set_thresh_y(thresh)
+    click_set_thresh_z(thresh)
 
-PUB click_thresh_x(thresh): curr_thresh
+PUB click_thresh_x{}: thresh
+' Get threshold for recognizing a click (X-axis)
+'   Returns: micro-g's
+    readreg(core#PULSE_THSX, 1, @thresh)
+    return (thresh * 0_063000)             ' scale to 1..8_000000 (8g's)
+
+PUB click_set_thresh_x(thresh)
 ' Set threshold for recognizing a click (X-axis), in micro-g's
 '   Valid values:
 '       0..8_000000 (8g's)
 '   Any other value polls the chip and returns the current setting
 '   NOTE: The allowed range is fixed at 8g's, regardless of the current
-'       setting of AccelScale()
-'   NOTE: If AccelLowNoiseMode() is set to LOWNOISE, the maximum threshold
+'       setting of accel_scale()
+'   NOTE: If accel_low_noise_mode() is set to LOWNOISE, the maximum threshold
 '       recognized using this method will be 4_000000 (4g's)
-    case thresh
-        0..8_000000:
-            thresh /= 0_063000
-            writereg(core#PULSE_THSX, 1, @thresh)
-        other:
-            readreg(core#PULSE_THSX, 1, @curr_thresh)
-            return curr_thresh * 0_063000       ' scale to 1..8_000000 (8g's)
+    thresh /= 0_063000
+    writereg(core#PULSE_THSX, 1, @thresh)
 
-PUB click_thresh_y(thresh): curr_thresh
+PUB click_thresh_y{}: thresh
+' Get threshold for recognizing a click (Y-axis)
+'   Returns: micro-g's
+    readreg(core#PULSE_THSY, 1, @thresh)
+    return (thresh * 0_063000)             ' scale to 1..8_000000 (8g's)
+
+PUB click_set_thresh_y(thresh)
 ' Set threshold for recognizing a click (Y-axis), in micro-g's
 '   Valid values:
 '       0..8_000000 (8g's)
 '   Any other value polls the chip and returns the current setting
 '   NOTE: The allowed range is fixed at 8g's, regardless of the current
-'       setting of AccelScale()
-'   NOTE: If AccelLowNoiseMode() is set to LOWNOISE, the maximum threshold
+'       setting of accel_scale()
+'   NOTE: If accel_low_noise_mode() is set to LOWNOISE, the maximum threshold
 '       recognized using this method will be 4_000000 (4g's)
-    case thresh
-        0..8_000000:
-            thresh /= 0_063000
-            writereg(core#PULSE_THSY, 1, @thresh)
-        other:
-            readreg(core#PULSE_THSY, 1, @curr_thresh)
-            return curr_thresh * 0_063000       ' scale to 1..8_000000 (8g's)
+    thresh /= 0_063000
+    writereg(core#PULSE_THSY, 1, @thresh)
 
-PUB click_thresh_z(thresh): curr_thresh
+PUB click_thresh_z{}: thresh
+' Get threshold for recognizing a click (Z-axis)
+'   Returns: micro-g's
+    readreg(core#PULSE_THSZ, 1, @thresh)
+    return (thresh * 0_063000)             ' scale to 1..8_000000 (8g's)
+
+PUB click_set_thresh_z(thresh)
 ' Set threshold for recognizing a click (Z-axis), in micro-g's
 '   Valid values:
 '       0..8_000000 (8g's)
 '   Any other value polls the chip and returns the current setting
 '   NOTE: The allowed range is fixed at 8g's, regardless of the current
-'       setting of AccelScale()
-'   NOTE: If AccelLowNoiseMode() is set to LOWNOISE, the maximum threshold
+'       setting of accel_scale()
+'   NOTE: If accel_low_noise_mode() is set to LOWNOISE, the maximum threshold
 '       recognized using this method will be 4_000000 (4g's)
-    case thresh
-        0..8_000000:
-            thresh /= 0_063000
-            writereg(core#PULSE_THSZ, 1, @thresh)
-        other:
-            readreg(core#PULSE_THSZ, 1, @curr_thresh)
-            return curr_thresh * 0_063000       ' scale to 1..8_000000 (8g's)
+    thresh /= 0_063000
+    writereg(core#PULSE_THSZ, 1, @thresh)
 
-PUB click_time(ctime): curr_ctime | time_res, odr
+PUB click_time{}: curr_ctime
+' Get maximum elapsed interval between start of click and end of click
+'   Returns: microseconds
+    readreg(core#PULSE_TMLT, 1, @curr_ctime)
+    return (curr_ctime * _accel_time_res)
+
+PUB click_set_time(ctime)
 ' Set maximum elapsed interval between start of click and end of click, in uSec
 '   (i.e., time from set ClickThresh exceeded to falls back below threshold)
 '   Valid values:
 '                                   Max time range
-'                           ClickLPFEnabled()
-'       AccelDataRate():    == 0        == 1
+'                           click_lpf_ena()
+'       accel_data_rate():    == 0        == 1
 '       800                 159_000     319_000
 '       400                 159_000     638_000
 '       200                 319_000     1_280_000
@@ -735,30 +740,21 @@ PUB click_time(ctime): curr_ctime | time_res, odr
 '       12                  1_280_000   5_100_000
 '       6                   1_280_000   5_100_000
 '       1                   1_280_000   5_100_000
-'   Any other value polls the chip and returns the current setting
-    ' calc time resolution (in microseconds) based on AccelDataRate() (1/ODR),
-    '   then limit to range spec'd in AN4072
-    odr := accel_data_rate(-2)
-    if click_lpf_ena(-2)
-        time_res := 1_250 #> ((1_000000/odr)) <# 20_000
-    else
-        time_res := 0_625 #> ((1_000000/odr) / 4) <# 5_000
+    ctime := ((0 #> ctime <# (_accel_time_res * 255)) / _accel_time_res)
+    writereg(core#PULSE_TMLT, 1, @ctime)
 
-    ' check that the parameter is between 0 and the max time range for
-    '   the current AccelDataRate() setting
-    if (ctime => 0) and (ctime =< (time_res * 255))
-        ctime /= time_res
-        writereg(core#PULSE_TMLT, 1, @ctime)
-    else
-        readreg(core#PULSE_TMLT, 1, @curr_ctime)
-        return (curr_ctime * time_res)
+PUB dbl_click_win{}: dctime
+' Set maximum elapsed interval between two consecutive clicks
+'   Returns: microseconds
+    readreg(core#PULSE_WIND, 1, @dctime)
+    return (dctime * _accel_time_res)
 
-PUB dbl_click_win(dctime): curr_dctime | time_res, odr
+PUB dbl_click_set_win(dctime)
 ' Set maximum elapsed interval between two consecutive clicks, in uSec
 '   Valid values:
 '                                   Max time range
-'                           ClickLPFEnabled()
-'       AccelDataRate():    == 0        == 1
+'                           click_lpf_ena()
+'       accel_data_rate():    == 0        == 1
 '       800                 318_000     638_000
 '       400                 318_000     1_276_000
 '       200                 638_000     2_560_000
@@ -767,23 +763,8 @@ PUB dbl_click_win(dctime): curr_dctime | time_res, odr
 '       12                  2_560_000   10_200_000
 '       6                   2_560_000   10_200_000
 '       1                   2_560_000   10_200_000
-'   Any other value polls the chip and returns the current setting
-    ' calc time resolution (in microseconds) based on AccelDataRate() (1/ODR),
-    '   then limit to range spec'd in AN4072
-    odr := accel_data_rate(-2)
-    if click_lpf_ena(-2)
-        time_res := 2_500 #> ((1_000000/odr) * 2) <# 40_000
-    else
-        time_res := 1_250 #> ((1_000000/odr) / 2) <# 10_000
-
-    ' check that the parameter is between 0 and the max time range for
-    '   the current AccelDataRate() setting
-    if (dctime => 0) and (dctime =< (time_res * 255))
-        dctime /= time_res
-        writereg(core#PULSE_WIND, 1, @dctime)
-    else
-        readreg(core#PULSE_WIND, 1, @curr_dctime)
-        return (curr_dctime * time_res)
+    dctime := ((0 #> dctime <# (_accel_time_res * 255)) / _accel_time_res)
+    writereg(core#PULSE_WIND, 1, @dctime)
 
 PUB dev_id{}: id
 ' Read device identification
@@ -820,11 +801,28 @@ PUB freefall_thresh(thresh): curr_thr
     thresh := ((curr_thr & core#FF_THS_MASK) | thresh)
     writereg(core#FF_MT_THS, 1, @thresh)
 
-PUB freefall_time(fftime): curr_time | odr, time_res, max_dur
+PUB freefall_time(fftime): curr_time | time_res
+' Get minimum time duration required to recognize free-fall
+'   Returns: microseconds
+    case accel_pwr_mode(-2)
+        NORMAL:
+            time_res := 1_250 #> _accel_time_res <# 20_000
+        LONOISE_LOPWR:
+            time_res := 1_250 #> _accel_time_res <# 80_000
+        HIGHRES:
+            time_res := 1_250 #> _accel_time_res <# 2_500
+        LOPWR:
+            time_res := 1_250 #> _accel_time_res <# 160_000
+
+    curr_time := 0
+    readreg(core#FF_MT_CNT, 1, @curr_time)
+    return (curr_time * time_res)
+
+PUB freefall_set_time(fftime) | time_res
 ' Set minimum time duration required to recognize free-fall, in microseconds
 '   Valid values: 0..maximum in table below:
-'                           AccelPowerMode():
-'       AccelDataRate():    NORMAL     LONOISE_LOPWR   HIGHRES     LOPWR
+'                           accel_pwr_mode():
+'       accel_data_rate():    NORMAL     LONOISE_LOPWR   HIGHRES     LOPWR
 '       800Hz               319_000    319_000         319_000     319_000
 '       400                 638_000    638_000         638_000     638_000
 '       200                 1_280      1_280           638_000     1_280
@@ -834,27 +832,18 @@ PUB freefall_time(fftime): curr_time | odr, time_res, max_dur
 '       6                   5_100      20_400          638_000     40_800
 '       1                   5_100      20_400          638_000     40_800
 '   Any other value polls the chip and returns the current setting
-    odr := accel_data_rate(-2)
     case accel_pwr_mode(-2)
         NORMAL:
-            time_res := 1_250 #> (1_000000/odr) <# 20_000
+            time_res := 1_250 #> _accel_time_res <# 20_000
         LONOISE_LOPWR:
-            time_res := 1_250 #> (1_000000/odr) <# 80_000
+            time_res := 1_250 #> _accel_time_res <# 80_000
         HIGHRES:
-            time_res := 1_250 #> (1_000000/odr) <# 2_500
+            time_res := 1_250 #> _accel_time_res <# 2_500
         LOPWR:
-            time_res := 1_250 #> (1_000000/odr) <# 160_000
+            time_res := 1_250 #> _accel_time_res <# 160_000
 
-    max_dur := (time_res * 255)
-
-    case fftime
-        0..max_dur:
-            fftime /= time_res
-            writereg(core#FF_MT_CNT, 1, @fftime)
-        other:
-            curr_time := 0
-            readreg(core#FF_MT_CNT, 1, @curr_time)
-            return (curr_time * time_res)
+    fftime := ((0 #> fftime <# (time_res * 255)) / time_res)
+    writereg(core#FF_MT_CNT, 1, @fftime)
 
 PUB inact_int(mask): curr_mask
 ' Set inactivity interrupt mask
@@ -878,41 +867,47 @@ PUB inact_int(mask): curr_mask
     writereg(core#CTRL_REG3, 1, @mask)
     restore_opmode{}
 
-PUB inact_thresh(thresh): curr_thr
-' Set inactivity threshold, in micro-g's
-'   Valid values: TBD
-'   Any other value polls the chip and returns the current setting
-    curr_thr := 0
-    readreg(core#TRANSIENT_THS, 1, @curr_thr)
-    case thresh
-        0..$7f:
-            writereg(core#TRANSIENT_THS, 1, @thresh)
-        other:
-            return curr_thr
+PUB inact_thresh{}: thresh
+' Get inactivity threshold
+    thresh := 0
+    readreg(core#TRANSIENT_THS, 1, @thresh)
 
-PUB inact_time(itime): curr_itime | max_dur, time_res
-' Set inactivity time, in milliseconds
-'   Valid values:
-'       0..163_200 (AccelDataRate() == 1)
-'       0..81_600 (AccelDataRate() == all other settings)
+PUB inact_set_thresh(thresh)
+' Set inactivity threshold
+'   Valid values: 0..127
 '   Any other value polls the chip and returns the current setting
-'   NOTE: Setting this to 0 will generate an interrupt when the acceleration
-'       measures less than that set with InactThresh()
-    if accel_data_rate(-2) == 1
+    thresh := 0 #> thresh <# 127
+    writereg(core#TRANSIENT_THS, 1, @thresh)
+
+PUB inact_time{}: curr_itime | time_res
+' Get inactivity time
+'   Returns: milliseconds
+    if (accel_data_rate(-2) == 1)
         time_res := 640                         ' 640ms time step for 1Hz ODR
     else
         time_res := 320                         ' 320ms time step for others
     max_dur := (time_res * 255)                 ' calc max possible duration
-    case itime
-        0..max_dur:
-            cache_opmode{}
-            itime := (itime / time_res)
-            writereg(core#ASLP_CNT, 1, @itime)
-            restore_opmode{}
-        other:
-            curr_itime := 0
-            readreg(core#ASLP_CNT, 1, @curr_itime)
-            return (curr_itime * time_res)
+
+    curr_itime := 0
+    readreg(core#ASLP_CNT, 1, @curr_itime)
+    return (curr_itime * time_res)
+
+PUB inact_set_time(itime) | time_res
+' Set inactivity time, in milliseconds
+'   Valid values:
+'       0..163_200 (accel_data_rate() == 1)
+'       0..81_600 (accel_data_rate() == all other settings)
+'   NOTE: Setting this to 0 will generate an interrupt when the acceleration
+'       measures less than that set with inact_set_thresh()
+    if (accel_data_rate(-2) == 1)
+        time_res := 640                         ' 640ms time step for 1Hz ODR
+    else
+        time_res := 320                         ' 320ms time step for others
+
+    cache_opmode{}
+    itime := ((0 #> itime <# (time_res * 255)) / time_res)
+    writereg(core#ASLP_CNT, 1, @itime)
+    restore_opmode{}
 
 PUB in_freefall{}: flag
 ' Flag indicating device is in free-fall
@@ -1047,17 +1042,18 @@ PUB sys_mode{}: sysmod 'XXX temporary
     sysmod := 0
     readreg(core#SYSMOD, 1, @sysmod)
 
-PUB trans_cnt(tcnt): curr_tcnt
+PUB trans_cnt{}: tcnt
 ' Set minimum number of debounced samples that must be greater than the
-'   threshold set by TransThresh() to generate an interrupt
+    tcnt := 0
+    readreg(core#TRANSIENT_CNT, 1, @tcnt)
+
+PUB trans_set_cnt(tcnt)
+' Set minimum number of debounced samples that must be greater than the
+'   threshold set by trans_set_thresh() to generate an interrupt
 '   Valid values: 0..255
 '   Any other value polls the chip and returns the current setting
-    case tcnt
-        0..255:
-            writereg(core#TRANSIENT_CNT, 1, @tcnt)
-        other:
-            curr_tcnt := 0
-            readreg(core#TRANSIENT_CNT, 1, @curr_tcnt)
+    tcnt := 0 #> tcnt <# 255
+    writereg(core#TRANSIENT_CNT, 1, @tcnt)
 
 PUB trans_axis_ena(axis_mask): curr_mask
 ' Enable transient acceleration detection, per mask
@@ -1097,7 +1093,7 @@ PUB trans_thresh(thr): curr_thr
 ' Set threshold for transient acceleration detection, in micro-g's
 '   Valid values: 0..8_001000 (0..8gs)
 '   Any other value polls the chip and returns the current setting
-'   NOTE: If AccelPowerMode() == LOWNOISE, the maximum value is reduced
+'   NOTE: If accel_pwr_mode() == LOWNOISE, the maximum value is reduced
 '       to 4g's (4_000000)
     curr_thr := 0
     readreg(core#TRANSIENT_THS, 1, @curr_thr)

@@ -57,8 +57,8 @@ PUB main{} | intsource, temp, sysmod
     accel.accel_pwr_mode(accel#HIGHRES)         ' high-res mode when awake
     accel.trans_axis_ena(%011)                  ' transient detection on X, Y
     accel.trans_thresh(0_252000)                ' set thresh to 0.252g (0..8g)
-    accel.trans_cnt(0)                          ' reset counter
-    accel.inact_time(5_120)                     ' inactivity timeout ~5sec
+    accel.trans_set_cnt(0)                          ' reset counter
+    accel.inact_set_time(5_120)                     ' inactivity timeout ~5sec
     accel.inact_int(accel#WAKE_TRANS)           ' wake on transient accel
     accel.int_mask(accel#INT_AUTOSLPWAKE | accel#INT_TRANS)
     accel.int_routing(accel#INT_AUTOSLPWAKE | accel#INT_TRANS)
