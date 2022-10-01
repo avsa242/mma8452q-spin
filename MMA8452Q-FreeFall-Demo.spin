@@ -6,7 +6,7 @@
         Free-fall detection functionality
     Copyright (c) 2022
     Started Nov 7, 2021
-    Updated Aug 18, 2022
+    Updated Oct 1, 2022
     See end of file for terms of use.
     --------------------------------------------
 }
@@ -44,7 +44,7 @@ VAR
     long _isr_stack[50]                         ' stack for ISR core
     long _intflag                               ' interrupt flag
 
-PUB Main{} | intsource, temp
+PUB main{} | intsource, temp
 
     setup{}
     accel.preset_freefall{}                     ' default settings, but enable
@@ -58,16 +58,16 @@ PUB Main{} | intsource, temp
     '   is cleared after the user presses a key
     ' The preset for free-fall detection sets a free-fall threshold of
     '   0.315g's for a minimum time of 30ms. This can be tuned using
-    '   accel.FreeFallThresh() and accel.FreeFallTime():
-    accel.freefallthresh(0_315000)              ' 0.315g's
-    accel.freefalltime(30_000)                  ' 30_000us/30ms
+    '   accel.freefall_thresh() and accel.freefall_time():
+    accel.freefall_thresh(0_315000)              ' 0.315g's
+    accel.freefall_time(30_000)                  ' 30_000us/30ms
     repeat
         ser.position(0, 3)
-        acceldata{}                             ' show accel data
-        if _intflag                             ' interrupt triggered
+        show_accel_data{}                       ' show accel data
+        if (_intflag)                           ' interrupt triggered
             intsource := accel.interrupt{}
             if (intsource & accel#INT_FFALL)    ' free-fall event
-                temp := accel.infreefall{}      ' clear the free-fall interrupt
+                temp := accel.in_freefall{}     ' clear the free-fall interrupt
             ser.position(0, 5)
             ser.strln(string("Sensor in free-fall!"))
             ser.str(string("Press any key to reset"))
@@ -77,10 +77,10 @@ PUB Main{} | intsource, temp
             ser.position(0, 5)
             ser.str(string("Sensor stable       "))
             
-        if ser.rxcheck{} == "c"                 ' press the 'c' key in the demo
+        if (ser.rxcheck{} == "c")               ' press the 'c' key in the demo
             cal_accel{}                         ' to calibrate sensor offsets
 
-PRI ISR{}
+PRI cog_isr{}
 ' Interrupt service routine
     dira[INT1] := 0                             ' INT1 as input
     repeat
@@ -89,7 +89,7 @@ PRI ISR{}
         waitpeq(|< INT1, |< INT1, 0)            ' now wait for it to clear
         _intflag := 0                           '   clear flag
 
-PUB Setup{}
+PUB setup{}
 
     ser.start(SER_BAUD)
     time.msleep(30)
@@ -102,7 +102,7 @@ PUB Setup{}
         ser.strln(string("MMA8452Q driver failed to start - halting"))
         repeat
 
-    cognew(isr, @_isr_stack)                    ' start ISR in another core
+    cognew(cog_isr{}, @_isr_stack)                    ' start ISR in another core
 
 #include "acceldemo.common.spinh"
 

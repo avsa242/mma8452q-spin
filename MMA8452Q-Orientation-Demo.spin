@@ -6,7 +6,7 @@
         detection functionality.
     Copyright (c) 2022
     Started Aug 8, 2021
-    Updated Aug 18, 2022
+    Updated Oct 1, 2022
     See end of file for terms of use.
     --------------------------------------------
 }
@@ -33,13 +33,13 @@ OBJ
     time    : "time"
     accel   : "sensor.accel.3dof.mma8452q"
 
-PUB Main{}
+PUB main{}
 
     setup{}
     accel.preset_active{}                       ' default settings, but enable
                                                 ' sensor power, and set
                                                 ' scale factors
-    accel.orientdetect(true)                    ' enable orientation detection
+    accel.orient_detect_ena(true)                   ' enable orientation detection
 
     repeat
         ser.position(0, 3)
@@ -64,18 +64,18 @@ PUB Main{}
             other:
         ser.clearline{}
 
-        if ser.rxcheck{} == "c"                 ' press the 'c' key in the demo
+        if (ser.rxcheck{} == "c")               ' press the 'c' key in the demo
             calibrate{}                         ' to calibrate sensor offsets
 
-PUB Calibrate{}
+PUB calibrate{}
 
     ser.position(0, 5)
     ser.str(string("Calibrating..."))
-    accel.calibrateaccel{}
+    accel.calibrate_accel{}
     ser.positionx(0)
     ser.clearline{}
 
-PUB Setup{}
+PUB setup{}
 
     ser.start(SER_BAUD)
     time.msleep(30)

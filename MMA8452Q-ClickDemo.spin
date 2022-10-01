@@ -6,7 +6,7 @@
         click-detection functionality
     Copyright (c) 2022
     Started Oct 30, 2021
-    Updated Aug 18, 2022
+    Updated Oct 1, 2022
     See end of file for terms of use.
     --------------------------------------------
 }
@@ -33,7 +33,7 @@ OBJ
     time    : "time"
     accel   : "sensor.accel.3dof.mma8452q"
 
-PUB Main{} | click_src, int_act, dclicked, sclicked, z_clicked, y_clicked, x_clicked
+PUB main{} | click_src, int_act, dclicked, sclicked, z_clicked, y_clicked, x_clicked
 
     setup{}
     accel.preset_clickdet{}                     ' preset settings for
@@ -41,8 +41,8 @@ PUB Main{} | click_src, int_act, dclicked, sclicked, z_clicked, y_clicked, x_cli
 
     ser.hidecursor{}                            ' hide terminal cursor
 
-    repeat until ser.rxcheck{} == "q"           ' press q to quit
-        click_src := accel.clickedint{}
+    repeat until (ser.rxcheck{} == "q")         ' press q to quit
+        click_src := accel.clicked_int{}
         int_act := ((click_src >> 7) & 1)
         dclicked := ((click_src >> 3) & 1)
         sclicked := ((click_src >> 7) & 1)
@@ -60,7 +60,7 @@ PUB Main{} | click_src, int_act, dclicked, sclicked, z_clicked, y_clicked, x_cli
     ser.showcursor{}                            ' restore terminal cursor
     repeat
 
-PRI YesNo(val): resp
+PRI yesno(val): resp
 ' Return pointer to string "Yes" or "No" depending on value called with
     case val
         0:
@@ -68,7 +68,7 @@ PRI YesNo(val): resp
         1:
             return string("Yes")
 
-PUB Setup{}
+PUB setup{}
 
     ser.start(SER_BAUD)
     time.msleep(30)

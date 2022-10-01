@@ -6,7 +6,7 @@
         Auto-sleep functionality
     Copyright (c) 2022
     Started Nov 6, 2021
-    Updated Aug 18, 2022
+    Updated Oct 1, 2022
     See end of file for terms of use.
     --------------------------------------------
 }
@@ -45,25 +45,25 @@ VAR
     long _isr_stack[50]                         ' stack for ISR core
     long _intflag                               ' interrupt flag
 
-PUB Main{} | intsource, temp, sysmod
+PUB main{} | intsource, temp, sysmod
 
     setup{}
     accel.preset_active{}                       ' default settings, but enable
                                                 ' sensor power, and set
                                                 ' scale factors
 
-    accel.autosleep(true)                       ' enable auto-sleep
-    accel.accelsleeppwrmode(accel#LOPWR)        ' lo-power mode when sleeping
-    accel.accelpowermode(accel#HIGHRES)         ' high-res mode when awake
-    accel.transaxisenabled(%011)                ' transient detection on X, Y
-    accel.transthresh(0_252000)                 ' set thresh to 0.252g (0..8g)
-    accel.transcount(0)                         ' reset counter
-    accel.inacttime(5_120)                      ' inactivity timeout ~5sec
-    accel.inactint(accel#WAKE_TRANS)            ' wake on transient accel
-    accel.intmask(accel#INT_AUTOSLPWAKE | accel#INT_TRANS)
-    accel.introuting(accel#INT_AUTOSLPWAKE | accel#INT_TRANS)
-    accel.acceldatarate(100)                    ' 100Hz ODR when active
-    accel.autosleepdatarate(6)                  ' 6Hz ODR when sleeping
+    accel.auto_sleep_ena(true)                  ' enable auto-sleep
+    accel.accel_sleep_pwr_mode(accel#LOPWR)     ' lo-power mode when sleeping
+    accel.accel_pwr_mode(accel#HIGHRES)         ' high-res mode when awake
+    accel.trans_axis_ena(%011)                  ' transient detection on X, Y
+    accel.trans_thresh(0_252000)                ' set thresh to 0.252g (0..8g)
+    accel.trans_cnt(0)                          ' reset counter
+    accel.inact_time(5_120)                     ' inactivity timeout ~5sec
+    accel.inact_int(accel#WAKE_TRANS)           ' wake on transient accel
+    accel.int_mask(accel#INT_AUTOSLPWAKE | accel#INT_TRANS)
+    accel.int_routing(accel#INT_AUTOSLPWAKE | accel#INT_TRANS)
+    accel.accel_data_rate(100)                  ' 100Hz ODR when active
+    accel.auto_sleep_data_rate(6)               ' 6Hz ODR when sleeping
     dira[LED] := 1
 
     ' The demo continuously displays the current accelerometer data.
@@ -75,30 +75,22 @@ PUB Main{} | intsource, temp, sysmod
     ' When the sensor goes to sleep, it should turn off.
     repeat
         ser.position(0, 3)
-        acceldata{}                             ' show accel data
-        if _intflag                             ' interrupt triggered
+        show_accel_data{}                       ' show accel data
+        if (_intflag)                           ' interrupt triggered
             intsource := accel.interrupt{}
             if (intsource & accel#INT_TRANS)    ' transient acceleration event
-                temp := accel.transinterrupt{}  ' clear the trans. interrupt
+                temp := accel.trans_interrupt{} ' clear the trans. interrupt
             if (intsource & accel#INT_AUTOSLPWAKE)
-                sysmod := accel.sysmode{}
+                sysmod := accel.sys_mode{}
                 if (sysmod & accel#SLEEP)       ' op. mode is sleep,
                     outa[LED] := 0              '   so turn LED off
                 elseif (sysmod & accel#ACTIVE)  ' else active,
                     outa[LED] := 1              '   turn it on
 
-        if ser.rxcheck{} == "c"                 ' press the 'c' key in the demo
+        if (ser.rxcheck{} == "c")               ' press the 'c' key in the demo
             cal_accel{}                         ' to calibrate sensor offsets
 
-PUB Calibrate{}
-
-    ser.position(0, 5)
-    ser.str(string("Calibrating..."))
-    accel.calibrateaccel{}
-    ser.positionx(0)
-    ser.clearline{}
-
-PRI ISR{}
+PRI cog_isr{}
 ' Interrupt service routine
     dira[INT1] := 0                             ' INT1 as input
     repeat
@@ -107,7 +99,7 @@ PRI ISR{}
         waitpeq(|< INT1, |< INT1, 0)            ' now wait for it to clear
         _intflag := 0                           '   clear flag
 
-PUB Setup{}
+PUB setup{}
 
     ser.start(SER_BAUD)
     time.msleep(30)
@@ -119,7 +111,7 @@ PUB Setup{}
         ser.strln(string("MMA8452Q driver failed to start - halting"))
         repeat
 
-    cognew(isr, @_isr_stack)                    ' start ISR in another core
+    cognew(cog_isr{}, @_isr_stack)                    ' start ISR in another core
 
 #include "acceldemo.common.spinh"
 
