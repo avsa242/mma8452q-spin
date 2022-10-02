@@ -5,7 +5,7 @@
     Description: Driver for the MMA8452Q 3DoF accelerometer
     Copyright (c) 2022
     Started May 9, 2021
-    Updated Oct 1, 2022
+    Updated Oct 2, 2022
     See end of file for terms of use.
     --------------------------------------------
 }
@@ -400,7 +400,7 @@ PUB accel_hpf_freq(freq): curr_freq
     freq := ((curr_freq & core#SEL_MASK) | freq)
     writereg(core#HP_FILT_CUTOFF, 1, @freq)
 
-PUB accel_lownoise_mode(mode): curr_mode    'XXX tentatively named
+PUB accel_low_noise_mode(mode): curr_mode    'XXX tentatively named
 ' Set accelerometer low noise mode
 '   Valid values:
 '       NORMAL (0), LOWNOISE (1)
