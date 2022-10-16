@@ -6,7 +6,7 @@
         * 3DoF data output
     Copyright (c) 2022
     Started Aug 12, 2017
-    Updated Oct 1, 2022
+    Updated Oct 16, 2022
     See end of file for terms of use.
     --------------------------------------------
 
@@ -32,8 +32,8 @@ CON
 
 OBJ
 
-    cfg: "core.con.boardcfg.flip"
-    accel: "sensor.accel.3dof.mma8452q"
+    cfg: "boardcfg.flip"
+    sensor: "sensor.accel.3dof.mma8452q"
     ser: "com.serial.terminal.ansi"
     time: "time"
 
@@ -45,16 +45,16 @@ PUB setup{}
     ser.strln(string("Serial terminal started"))
 
 #ifdef MMA8452Q_SPI
-    if (accel.startx(CS_PIN, SCK_PIN, MOSI_PIN, MISO_PIN))
+    if (sensor.startx(CS_PIN, SCK_PIN, MOSI_PIN, MISO_PIN))
 #else
-    if (accel.startx(SCL_PIN, SDA_PIN, I2C_FREQ, ADDR_BITS))
+    if (sensor.startx(SCL_PIN, SDA_PIN, I2C_FREQ, ADDR_BITS))
 #endif
         ser.strln(string("MMA8452Q driver started"))
     else
         ser.strln(string("MMA8452Q driver failed to start - halting"))
         repeat
 
-    accel.preset_active{}
+    sensor.preset_active{}
 
     repeat
         ser.position(0, 3)

@@ -6,7 +6,7 @@
         detection functionality (P2 version)
     Copyright (c) 2022
     Started Nov 9, 2021
-    Updated Oct 1, 2022
+    Updated Oct 16, 2022
     See end of file for terms of use.
     --------------------------------------------
 }
@@ -28,7 +28,7 @@ CON
 
 OBJ
 
-    cfg     : "core.con.boardcfg.p2eval"
+    cfg     : "boardcfg.p2eval"
     ser     : "com.serial.terminal.ansi"
     accel   : "sensor.accel.3dof.mma8452q"
 

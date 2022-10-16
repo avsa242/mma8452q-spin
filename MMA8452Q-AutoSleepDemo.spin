@@ -6,7 +6,7 @@
         Auto-sleep functionality
     Copyright (c) 2022
     Started Nov 6, 2021
-    Updated Oct 1, 2022
+    Updated Oct 16, 2022
     See end of file for terms of use.
     --------------------------------------------
 }
@@ -34,10 +34,10 @@ CON
 
 OBJ
 
-    cfg     : "core.con.boardcfg.flip"
+    cfg     : "boardcfg.flip"
     ser     : "com.serial.terminal.ansi"
     time    : "time"
-    accel   : "sensor.accel.3dof.mma8452q"
+    sensor  : "sensor.accel.3dof.mma8452q"
     core    : "core.con.mma8452q"
 
 VAR
@@ -48,22 +48,22 @@ VAR
 PUB main{} | intsource, temp, sysmod
 
     setup{}
-    accel.preset_active{}                       ' default settings, but enable
+    sensor.preset_active{}                       ' default settings, but enable
                                                 ' sensor power, and set
                                                 ' scale factors
 
-    accel.auto_sleep_ena(true)                  ' enable auto-sleep
-    accel.accel_sleep_pwr_mode(accel#LOPWR)     ' lo-power mode when sleeping
-    accel.accel_pwr_mode(accel#HIGHRES)         ' high-res mode when awake
-    accel.trans_axis_ena(%011)                  ' transient detection on X, Y
-    accel.trans_thresh(0_252000)                ' set thresh to 0.252g (0..8g)
-    accel.trans_set_cnt(0)                          ' reset counter
-    accel.inact_set_time(5_120)                     ' inactivity timeout ~5sec
-    accel.inact_int(accel#WAKE_TRANS)           ' wake on transient accel
-    accel.int_mask(accel#INT_AUTOSLPWAKE | accel#INT_TRANS)
-    accel.int_routing(accel#INT_AUTOSLPWAKE | accel#INT_TRANS)
-    accel.accel_data_rate(100)                  ' 100Hz ODR when active
-    accel.auto_sleep_data_rate(6)               ' 6Hz ODR when sleeping
+    sensor.auto_sleep_ena(true)                  ' enable auto-sleep
+    sensor.accel_sleep_pwr_mode(sensor#LOPWR)     ' lo-power mode when sleeping
+    sensor.accel_pwr_mode(sensor#HIGHRES)         ' high-res mode when awake
+    sensor.trans_axis_ena(%011)                  ' transient detection on X, Y
+    sensor.trans_thresh(0_252000)                ' set thresh to 0.252g (0..8g)
+    sensor.trans_set_cnt(0)                          ' reset counter
+    sensor.inact_set_time(5_120)                     ' inactivity timeout ~5sec
+    sensor.inact_int(sensor#WAKE_TRANS)           ' wake on transient accel
+    sensor.int_mask(sensor#INT_AUTOSLPWAKE | sensor#INT_TRANS)
+    sensor.int_routing(sensor#INT_AUTOSLPWAKE | sensor#INT_TRANS)
+    sensor.accel_data_rate(100)                  ' 100Hz ODR when active
+    sensor.auto_sleep_data_rate(6)               ' 6Hz ODR when sleeping
     dira[LED] := 1
 
     ' The demo continuously displays the current accelerometer data.
@@ -77,14 +77,14 @@ PUB main{} | intsource, temp, sysmod
         ser.position(0, 3)
         show_accel_data{}                       ' show accel data
         if (_intflag)                           ' interrupt triggered
-            intsource := accel.interrupt{}
-            if (intsource & accel#INT_TRANS)    ' transient acceleration event
-                temp := accel.trans_interrupt{} ' clear the trans. interrupt
-            if (intsource & accel#INT_AUTOSLPWAKE)
-                sysmod := accel.sys_mode{}
-                if (sysmod & accel#SLEEP)       ' op. mode is sleep,
+            intsource := sensor.interrupt{}
+            if (intsource & sensor#INT_TRANS)    ' transient acceleration event
+                temp := sensor.trans_interrupt{} ' clear the trans. interrupt
+            if (intsource & sensor#INT_AUTOSLPWAKE)
+                sysmod := sensor.sys_mode{}
+                if (sysmod & sensor#SLEEP)       ' op. mode is sleep,
                     outa[LED] := 0              '   so turn LED off
-                elseif (sysmod & accel#ACTIVE)  ' else active,
+                elseif (sysmod & sensor#ACTIVE)  ' else active,
                     outa[LED] := 1              '   turn it on
 
         if (ser.rxcheck{} == "c")               ' press the 'c' key in the demo
@@ -105,7 +105,7 @@ PUB setup{}
     time.msleep(30)
     ser.clear{}
     ser.strln(string("Serial terminal started"))
-    if accel.startx(SCL_PIN, SDA_PIN, I2C_FREQ, ADDR_BITS)
+    if sensor.startx(SCL_PIN, SDA_PIN, I2C_FREQ, ADDR_BITS)
         ser.strln(string("MMA8452Q driver started (I2C)"))
     else
         ser.strln(string("MMA8452Q driver failed to start - halting"))

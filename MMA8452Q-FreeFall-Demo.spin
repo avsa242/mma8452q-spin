@@ -6,7 +6,7 @@
         Free-fall detection functionality
     Copyright (c) 2022
     Started Nov 7, 2021
-    Updated Oct 1, 2022
+    Updated Oct 16, 2022
     See end of file for terms of use.
     --------------------------------------------
 }
@@ -34,10 +34,10 @@ CON
 
 OBJ
 
-    cfg     : "core.con.boardcfg.flip"
+    cfg     : "boardcfg.flip"
     ser     : "com.serial.terminal.ansi"
     time    : "time"
-    accel   : "sensor.accel.3dof.mma8452q"
+    sensor  : "sensor.accel.3dof.mma8452q"
 
 VAR
 
@@ -47,7 +47,7 @@ VAR
 PUB main{} | intsource, temp
 
     setup{}
-    accel.preset_freefall{}                     ' default settings, but enable
+    sensor.preset_freefall{}                     ' default settings, but enable
                                                 ' sensors, set scale factors,
                                                 ' and free-fall parameters
     ser.position(0, 5)
@@ -58,16 +58,16 @@ PUB main{} | intsource, temp
     '   is cleared after the user presses a key
     ' The preset for free-fall detection sets a free-fall threshold of
     '   0.315g's for a minimum time of 30ms. This can be tuned using
-    '   accel.freefall_thresh() and accel.freefall_time():
-    accel.freefall_thresh(0_315000)              ' 0.315g's
-    accel.freefall_time(30_000)                  ' 30_000us/30ms
+    '   sensor.freefall_thresh() and sensor.freefall_time():
+    sensor.freefall_thresh(0_315000)              ' 0.315g's
+    sensor.freefall_time(30_000)                  ' 30_000us/30ms
     repeat
         ser.position(0, 3)
         show_accel_data{}                       ' show accel data
         if (_intflag)                           ' interrupt triggered
-            intsource := accel.interrupt{}
-            if (intsource & accel#INT_FFALL)    ' free-fall event
-                temp := accel.in_freefall{}     ' clear the free-fall interrupt
+            intsource := sensor.interrupt{}
+            if (intsource & sensor#INT_FFALL)    ' free-fall event
+                temp := sensor.in_freefall{}     ' clear the free-fall interrupt
             ser.position(0, 5)
             ser.strln(string("Sensor in free-fall!"))
             ser.str(string("Press any key to reset"))
@@ -96,7 +96,7 @@ PUB setup{}
     ser.clear{}
     ser.strln(string("Serial terminal started"))
 
-    if accel.startx(SCL_PIN, SDA_PIN, I2C_FREQ, ADDR_BITS)
+    if sensor.startx(SCL_PIN, SDA_PIN, I2C_FREQ, ADDR_BITS)
         ser.strln(string("MMA8452Q driver started"))
     else
         ser.strln(string("MMA8452Q driver failed to start - halting"))
