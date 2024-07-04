@@ -19,35 +19,25 @@ CON
     _clkmode    = cfg._clkmode
     _xinfreq    = cfg._xinfreq
 
-' -- User-modifiable constants
-    LED         = cfg.LED1
-    SER_BAUD    = 115_200
-
-    SCL_PIN     = 28
-    SDA_PIN     = 29
-    I2C_FREQ    = 400_000                       ' max is 400_000
-    ADDR_BITS   = 0                             ' 0, 1
-' --
-
 
 OBJ
 
     cfg:    "boardcfg.flip"
     time:   "time"
-    ser:    "com.serial.terminal.ansi"
-    accel:  "sensor.accel.3dof.mma8452q"
+    ser:    "com.serial.terminal.ansi" | SER_BAUD=115_200
+    sensor: "sensor.accel.3dof.mma8452q" | SCL=28, SDA=29, I2C_FREQ=400_000, I2C_ADDR=0
 
 
 PUB main() | click_src, int_act, dclicked, sclicked, z_clicked, y_clicked, x_clicked
 
     setup()
-    accel.preset_clickdet()                     ' preset settings for
+    sensor.preset_clickdet()                     ' preset settings for
                                                 ' click-detection
 
     ser.hide_cursor()                           ' hide terminal cursor
 
-    repeat until (ser.rx_check() == "q")        ' press q to quit
-        click_src := accel.clicked_int()
+    repeat until (ser.getchar_noblock() == "q") ' press q to quit
+        click_src := sensor.clicked_int()
         int_act := ((click_src >> 7) & 1)
         dclicked := ((click_src >> 3) & 1)
         sclicked := ((click_src >> 7) & 1)
@@ -77,12 +67,12 @@ PRI yesno(val): resp
 
 PUB setup()
 
-    ser.start(SER_BAUD)
+    ser.start()
     time.msleep(30)
     ser.clear()
     ser.strln(@"Serial terminal started")
 
-    if ( accel.startx(SCL_PIN, SDA_PIN, I2C_FREQ, ADDR_BITS) )
+    if ( sensor.start() )
         ser.strln(@"MMA8452Q driver started (I2C)")
     else
         ser.strln(@"MMA8452Q driver failed to start - halting")

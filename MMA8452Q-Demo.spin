@@ -19,33 +19,23 @@ CON
     _clkmode    = cfg._clkmode
     _xinfreq    = cfg._xinfreq
 
-' -- User-modifiable constants
-    SER_BAUD    = 115_200
-
-    { I2C configuration }
-    SCL_PIN     = 28
-    SDA_PIN     = 29
-    I2C_FREQ    = 400_000                       ' max is 400_000
-    ADDR_BITS   = 0                             ' 0, 1
-' --
-
 
 OBJ
 
     cfg:    "boardcfg.flip"
     time:   "time"
-    ser:    "com.serial.terminal.ansi"
-    sensor: "sensor.accel.3dof.mma8452q"
+    ser:    "com.serial.terminal.ansi" | SER_BAUD=115_200
+    sensor: "sensor.accel.3dof.mma8452q" | SCL=28, SDA=29, I2C_FREQ=400_000, I2C_ADDR=0
 
 
 PUB setup()
 
-    ser.start(SER_BAUD)
-    time.msleep(10)
+    ser.start()
+    time.msleep(30)
     ser.clear()
     ser.strln(@"Serial terminal started")
 
-    if ( sensor.startx(SCL_PIN, SDA_PIN, I2C_FREQ, ADDR_BITS) )
+    if ( sensor.start() )
         ser.strln(@"MMA8452Q driver started")
     else
         ser.strln(@"MMA8452Q driver failed to start - halting")
@@ -56,10 +46,10 @@ PUB setup()
     repeat
         ser.pos_xy(0, 3)
         show_accel_data()
-        if ( ser.rx_check() == "c" )
+        if ( ser.getchar_noblock() == "c" )
             cal_accel()
 
-#include "acceldemo.common.spinh"                 ' code common to all IMU demos
+#include "acceldemo.common.spinh"               ' use code common to all accelerometer demos
 
 DAT
 {

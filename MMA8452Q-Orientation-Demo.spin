@@ -19,57 +19,47 @@ CON
     _clkmode    = cfg._clkmode
     _xinfreq    = cfg._xinfreq
 
-' -- User-modifiable constants
-    LED         = cfg.LED1
-    SER_BAUD    = 115_200
-
-    SCL_PIN     = 28
-    SDA_PIN     = 29
-    I2C_FREQ    = 400_000                       ' max is 400_000
-    ADDR_BITS   = 0                             ' 0, 1
-' --
-
 
 OBJ
 
     cfg:    "boardcfg.flip"
     time:   "time"
-    ser:    "com.serial.terminal.ansi"
-    accel:  "sensor.accel.3dof.mma8452q"
+    ser:    "com.serial.terminal.ansi" | SER_BAUD=115_200
+    sensor: "sensor.accel.3dof.mma8452q" | SCL=28, SDA=29, I2C_FREQ=400_000, I2C_ADDR=0
 
 
 PUB main()
 
     setup()
-    accel.preset_active()                       ' default settings, but enable
+    sensor.preset_active()                       ' default settings, but enable
                                                 ' sensor power, and set
                                                 ' scale factors
-    accel.orient_detect_ena(true)                   ' enable orientation detection
+    sensor.orient_detect_ena(true)               ' enable orientation detection
 
     repeat
         ser.pos_xy(0, 3)
         ser.puts(@"Orientation: ")
-        case accel.orientation()
-            accel.PORTUP_FR:
+        case sensor.orientation()
+            sensor.PORTUP_FR:
                 ser.str(@"Portrait-up, front-facing")
-            accel.PORTUP_BK:
+            sensor.PORTUP_BK:
                 ser.str(@"Portrait-up, back-facing")
-            accel.PORTDN_FR:
+            sensor.PORTDN_FR:
                 ser.str(@"Portrait-down, front-facing")
-            accel.PORTDN_BK:
+            sensor.PORTDN_BK:
                 ser.str(@"Portrait-down, back-facing")
-            accel.LANDRT_FR:
+            sensor.LANDRT_FR:
                 ser.str(@"Landscape-right, front-facing")
-            accel.LANDRT_BK:
+            sensor.LANDRT_BK:
                 ser.str(@"Landscape-right, back-facing")
-            accel.LANDLT_FR:
+            sensor.LANDLT_FR:
                 ser.str(@"Landscape-left, front-facing")
-            accel.LANDLT_BK:
+            sensor.LANDLT_BK:
                 ser.str(@"Landscape-left, back-facing")
             other:
         ser.clear_line()
 
-        if ( ser.rx_check() == "c" )            ' press the 'c' key in the demo
+        if ( ser.getchar_noblock() == "c" )     ' press the 'c' key in the demo
             calibrate()                         ' to calibrate sensor offsets
 
 
@@ -77,19 +67,19 @@ PUB calibrate()
 
     ser.pos_xy(0, 5)
     ser.puts(@"Calibrating...")
-    accel.calibrate_accel()
+    sensor.calibrate_accel()
     ser.pos_x(0)
     ser.clear_line()
 
 
 PUB setup()
 
-    ser.start(SER_BAUD)
+    ser.start()
     time.msleep(30)
     ser.clear()
     ser.strln(@"Serial terminal started")
 
-    if ( accel.startx(SCL_PIN, SDA_PIN, I2C_FREQ, ADDR_BITS) )
+    if ( sensor.start() )
         ser.strln(@"MMA8452Q driver started (I2C)")
     else
         ser.strln(@"MMA8452Q driver failed to start - halting")

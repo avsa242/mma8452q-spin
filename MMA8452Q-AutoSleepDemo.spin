@@ -21,27 +21,16 @@ CON
 
 ' -- User-modifiable constants
     LED         = cfg.LED1
-    SER_BAUD    = 115_200
-
-    SCL_PIN     = 28
-    SDA_PIN     = 29
-    I2C_FREQ    = 400_000                       ' max is 400_000
-    ADDR_BITS   = 0                             ' 0, 1
-
     INT1        = 24                            ' MMA8452Q INT1 pin
 ' --
-
-    DAT_X_COL   = 20
-    DAT_Y_COL   = DAT_X_COL + 15
-    DAT_Z_COL   = DAT_Y_COL + 15
 
 
 OBJ
 
     cfg:    "boardcfg.flip"
     time:   "time"
-    ser:    "com.serial.terminal.ansi"
-    sensor: "sensor.accel.3dof.mma8452q"
+    ser:    "com.serial.terminal.ansi" | SER_BAUD=115_200
+    sensor: "sensor.accel.3dof.mma8452q" | SCL=28, SDA=29, I2C_FREQ=400_000, I2C_ADDR=0
 
 
 VAR
@@ -53,9 +42,8 @@ VAR
 PUB main() | intsource, temp, sysmod
 
     setup()
-    sensor.preset_active()                      ' default settings, but enable
-                                                ' sensor power, and set
-                                                ' scale factors
+    sensor.preset_active()                      ' default settings, but enable sensor power, and
+                                                '   set scale factors
 
     sensor.auto_sleep_ena(true)                 ' enable auto-sleep
     sensor.accel_sleep_pwr_mode(sensor.LOPWR)   ' lo-power mode when sleeping
@@ -108,11 +96,11 @@ PRI cog_isr()
 
 PUB setup()
 
-    ser.start(SER_BAUD)
+    ser.start()
     time.msleep(30)
     ser.clear()
     ser.strln(@"Serial terminal started")
-    if ( sensor.startx(SCL_PIN, SDA_PIN, I2C_FREQ, ADDR_BITS) )
+    if ( sensor.start() )
         ser.strln(@"MMA8452Q driver started (I2C)")
     else
         ser.strln(@"MMA8452Q driver failed to start - halting")
