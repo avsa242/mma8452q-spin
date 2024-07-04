@@ -1,23 +1,26 @@
 {
-    --------------------------------------------
-    Filename: MMA8452Q-FreeFall-Demo.spin
-    Author: Jesse Burt
-    Description: Demo of the MMA8452Q driver
-        Free-fall detection functionality
-    Copyright (c) 2022
-    Started Nov 7, 2021
-    Updated Nov 26, 2022
-    See end of file for terms of use.
-    --------------------------------------------
+----------------------------------------------------------------------------------------------------
+    Filename:       MMA8452Q-FreeFall-Demo.spin
+    Description:    Demo of the MMA8452Q driver
+        * Free-fall detection functionality
+    Author:         Jesse Burt
+    Started:        Nov 7, 2021
+    Updated:        Jul 4, 2024
+    Copyright (c) 2024 - See end of file for terms of use.
+----------------------------------------------------------------------------------------------------
 }
+
+' Uncomment the two lines below to use the bytecode-based I2C engine
+'#define MMA8452Q_I2C_BC
+'#pragma exportdef(MMA8452Q_I2C_BC)
 
 CON
 
-    _clkmode    = cfg#_clkmode
-    _xinfreq    = cfg#_xinfreq
+    _clkmode    = cfg._clkmode
+    _xinfreq    = cfg._xinfreq
 
 ' -- User-modifiable constants
-    LED         = cfg#LED1
+    LED         = cfg.LED1
     SER_BAUD    = 115_200
 
     SCL_PIN     = 28
@@ -32,26 +35,29 @@ CON
     DAT_Y_COL   = DAT_X_COL + 15
     DAT_Z_COL   = DAT_Y_COL + 15
 
+
 OBJ
 
-    cfg     : "boardcfg.flip"
-    ser     : "com.serial.terminal.ansi"
-    time    : "time"
-    sensor  : "sensor.accel.3dof.mma8452q"
+    cfg:    "boardcfg.flip"
+    time:   "time"
+    ser:    "com.serial.terminal.ansi"
+    sensor: "sensor.accel.3dof.mma8452q"
+
 
 VAR
 
     long _isr_stack[50]                         ' stack for ISR core
     long _intflag                               ' interrupt flag
 
-PUB main{} | intsource, temp
 
-    setup{}
-    sensor.preset_freefall{}                     ' default settings, but enable
+PUB main() | intsource, temp
+
+    setup()
+    sensor.preset_freefall()                     ' default settings, but enable
                                                 ' sensors, set scale factors,
                                                 ' and free-fall parameters
     ser.pos_xy(0, 5)
-    ser.puts(string("Sensor stable       "))
+    ser.puts(@"Sensor stable       ")
 
     ' The demo continuously displays the current accelerometer data.
     ' When the sensor detects free-fall, a message is displayed and
@@ -63,24 +69,25 @@ PUB main{} | intsource, temp
     sensor.freefall_time(30_000)                ' 30_000us/30ms
     repeat
         ser.pos_xy(0, 3)
-        show_accel_data{}                       ' show accel data
-        if (_intflag)                           ' interrupt triggered
-            intsource := sensor.accel_int{}
-            if (intsource & sensor#INT_FFALL)   ' free-fall event
-                temp := sensor.in_freefall{}    ' clear the free-fall interrupt
+        show_accel_data()                       ' show accel data
+        if ( _intflag )                         ' interrupt triggered
+            intsource := sensor.accel_int()
+            if ( intsource & sensor.INT_FFALL ) ' free-fall event
+                temp := sensor.in_freefall()    ' clear the free-fall interrupt
             ser.pos_xy(0, 5)
-            ser.strln(string("Sensor in free-fall!"))
-            ser.puts(string("Press any key to reset"))
-            ser.getchar{}                       ' wait for keypress
+            ser.strln(@"Sensor in free-fall!")
+            ser.puts(@"Press any key to reset")
+            ser.getchar()                       ' wait for keypress
             ser.pos_x(0)
-            ser.clear_line{}
+            ser.clear_line()
             ser.pos_xy(0, 5)
-            ser.puts(string("Sensor stable       "))
+            ser.puts(@"Sensor stable       ")
             
-        if (ser.rx_check{} == "c")              ' press the 'c' key in the demo
-            cal_accel{}                         ' to calibrate sensor offsets
+        if ( ser.rx_check() == "c" )            ' press the 'c' key in the demo
+            cal_accel()                         ' to calibrate sensor offsets
 
-PRI cog_isr{}
+
+PRI cog_isr()
 ' Interrupt service routine
     dira[INT1] := 0                             ' INT1 as input
     repeat
@@ -89,26 +96,28 @@ PRI cog_isr{}
         waitpeq(|< INT1, |< INT1, 0)            ' now wait for it to clear
         _intflag := 0                           '   clear flag
 
-PUB setup{}
+
+PUB setup()
 
     ser.start(SER_BAUD)
     time.msleep(30)
-    ser.clear{}
-    ser.strln(string("Serial terminal started"))
+    ser.clear()
+    ser.strln(@"Serial terminal started")
 
-    if sensor.startx(SCL_PIN, SDA_PIN, I2C_FREQ, ADDR_BITS)
-        ser.strln(string("MMA8452Q driver started"))
+    if ( sensor.startx(SCL_PIN, SDA_PIN, I2C_FREQ, ADDR_BITS) )
+        ser.strln(@"MMA8452Q driver started")
     else
-        ser.strln(string("MMA8452Q driver failed to start - halting"))
+        ser.strln(@"MMA8452Q driver failed to start - halting")
         repeat
 
-    cognew(cog_isr{}, @_isr_stack)                    ' start ISR in another core
+    cognew(cog_isr(), @_isr_stack)              ' start ISR in another core
 
 #include "acceldemo.common.spinh"
 
+
 DAT
 {
-Copyright 2022 Jesse Burt
+Copyright 2024 Jesse Burt
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
 associated documentation files (the "Software"), to deal in the Software without restriction,

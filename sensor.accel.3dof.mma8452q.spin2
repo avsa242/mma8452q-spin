@@ -1,13 +1,12 @@
 {
-    --------------------------------------------
-    Filename: sensor.accel.3dof.mma8452q.spin2
-    Author: Jesse Burt
-    Description: Driver for the MMA8452Q 3DoF accelerometer (P2 version)
-    Copyright (c) 2022
-    Started Nov 9, 2021
-    Updated Nov 5, 2022
-    See end of file for terms of use.
-    --------------------------------------------
+----------------------------------------------------------------------------------------------------
+    Filename:       sensor.accel.3dof.mma8452q.spin2
+    Description:    Driver for the MMA8452Q 3DoF accelerometer
+    Author:         Jesse Burt
+    Started:        Nov 9, 2021
+    Updated:        Jul 4, 2024
+    Copyright (c) 2024 - See end of file for terms of use.
+----------------------------------------------------------------------------------------------------
 }
 #include "sensor.accel.common.spin2h"
 
@@ -88,25 +87,29 @@ CON
     LOW             = 0
     HIGH            = 1
 
+
 VAR
 
     long _accel_time_res
     byte _opmode_orig
     byte _addr_bits
 
+
 OBJ
 
-    i2c : "com.i2c"                             ' I2C engine (up to 1MHz)
-    core: "core.con.mma8452q"                   ' hw-specific low-level const's
+    i2c:    "com.i2c"                           ' I2C engine
+    core:   "core.con.mma8452q"                 ' hw-specific constants
+
 
 PUB null()
 ' This is not a top-level object
 
+
 PUB startx(SCL_PIN, SDA_PIN, I2C_HZ=DEF_HZ, ADDR_BITS=DEF_ADDR): status
 ' Start using custom IO pins and I2C bus frequency
     ' validate I/O pins, bus freq, and I2C address bit(s)
-    if lookdown(SCL_PIN: 0..63) and lookdown(SDA_PIN: 0..63) and {
-}   I2C_HZ <= core.I2C_MAX_FREQ and lookdown(ADDR_BITS: 0, 1)
+    if ( lookdown(SCL_PIN: 0..63) and lookdown(SDA_PIN: 0..63) and ...
+    I2C_HZ <= core.I2C_MAX_FREQ and lookdown(ADDR_BITS: 0, 1) )
         if (status := i2c.init(SCL_PIN, SDA_PIN, I2C_HZ))
             waitus(core.T_POR)                  ' wait for device startup
             _addr_bits := ADDR_BITS << 1
@@ -118,20 +121,24 @@ PUB startx(SCL_PIN, SDA_PIN, I2C_HZ=DEF_HZ, ADDR_BITS=DEF_ADDR): status
     ' Lastly - make sure you have at least one free core/cog 
     return FALSE
 
+
 PUB stop()
 ' Stop the driver
     i2c.deinit()
     _opmode_orig := 0
 
+
 PUB defaults()
 ' Set factory defaults
     reset()
+
 
 PUB preset_active()
 ' Like defaults(), but enable sensor power, and set scale
     reset()
     accel_opmode(ACTIVE)
     accel_scale(2)
+
 
 PUB preset_clickdet()
 ' Preset settings for click detection
@@ -149,6 +156,7 @@ PUB preset_clickdet()
     accel_int_routing(INT_PULSE)                ' route click ints to INT1 pin
     accel_opmode(ACTIVE)
 
+
 PUB preset_freefall()
 ' Preset settings for free-fall detection
     reset()
@@ -161,17 +169,20 @@ PUB preset_freefall()
     accel_int_mask(INT_FFALL)                   ' enable free-fall interrupt
     accel_int_routing(INT_FFALL)                ' route free-fall ints to INT1
 
+
 PUB dev_id(): id
 ' Read device identification
 '   Returns: $2A
     id := 0
     readreg(core.WHO_AM_I, 1, @id)
 
+
 PUB reset() | tmp
 ' Reset the device
     tmp := core.RESET
     writereg(core.CTRL_REG2, 1, @tmp)
-    waitus(core.T_POR)                     ' wait for device to come back
+    waitus(core.T_POR)                          ' wait for device to come back
+
 
 PUB sys_mode(): sysmod 'XXX temporary
 ' Read current system mode
@@ -182,23 +193,26 @@ PUB sys_mode(): sysmod 'XXX temporary
 { re-use code that's common to other NXP accelerometer drivers }
 #include "sensor.accel.nxp.common.spin2h"
 
+
 PRI cache_opmode()
 ' Store the current operating mode, and switch to standby if different
 '   (required for modifying some registers)
     _opmode_orig := accel_opmode()
-    if _opmode_orig <> STDBY                    ' must be in standby to change
-        accel_opmode(STDBY)                      '   control regs
+    if ( _opmode_orig <> STDBY )                ' must be in standby to change
+        accel_opmode(STDBY)                     '   control regs
+
 
 PRI restore_opmode()
 ' Restore original operating mode
-    if _opmode_orig <> STDBY                    ' restore original opmode
+    if ( _opmode_orig <> STDBY )                ' restore original opmode
         accel_opmode(_opmode_orig)
+
 
 PRI readreg(reg_nr, nr_bytes, ptr_buff) | cmd_pkt
 ' Read nr_bytes from the device into ptr_buff
     case reg_nr                                 ' validate register num
-        core.OUT_X_MSB, core.OUT_Y_MSB, core.OUT_Z_MSB, {
-}       core.STATUS, core.SYSMOD..core.FF_MT_CNT, core.TRANSIENT_CFG..core.OFF_Z:
+        core.OUT_X_MSB, core.OUT_Y_MSB, core.OUT_Z_MSB, core.STATUS, ...
+        core.SYSMOD..core.FF_MT_CNT, core.TRANSIENT_CFG..core.OFF_Z:
             cmd_pkt.byte[0] := (SLAVE_WR | _addr_bits)
             cmd_pkt.byte[1] := reg_nr
             i2c.start()
@@ -210,12 +224,13 @@ PRI readreg(reg_nr, nr_bytes, ptr_buff) | cmd_pkt
         other:                                  ' invalid reg_nr
             return
 
+
 PRI writereg(reg_nr, nr_bytes, ptr_buff) | cmd_pkt
 ' Write nr_bytes to the device from ptr_buff
     case reg_nr
-        core.XYZ_DATA_CFG, core.HP_FILT_CUTOFF, core.PL_CFG, core.FF_MT_CFG, {
-}       core.FF_MT_THS, core.FF_MT_CNT, core.TRANSIENT_CFG, {
-}       core.TRANSIENT_THS..core.PULSE_CFG, core.PULSE_THSX..core.OFF_Z:
+        core.XYZ_DATA_CFG, core.HP_FILT_CUTOFF, core.PL_CFG, core.FF_MT_CFG, core.FF_MT_THS, ...
+        core.FF_MT_CNT, core.TRANSIENT_CFG, core.TRANSIENT_THS..core.PULSE_CFG, ...
+        core.PULSE_THSX..core.OFF_Z:
             cmd_pkt.byte[0] := (SLAVE_WR | _addr_bits)
             cmd_pkt.byte[1] := reg_nr
             i2c.start()
@@ -228,7 +243,7 @@ PRI writereg(reg_nr, nr_bytes, ptr_buff) | cmd_pkt
 
 DAT
 {
-Copyright 2022 Jesse Burt
+Copyright 2024 Jesse Burt
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
 associated documentation files (the "Software"), to deal in the Software without restriction,

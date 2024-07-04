@@ -1,23 +1,26 @@
 {
-    --------------------------------------------
-    Filename: MMA8452Q-AutoSleepDemo.spin
-    Author: Jesse Burt
-    Description: Demo of the MMA8452Q driver
-        Auto-sleep functionality
-    Copyright (c) 2022
-    Started Nov 6, 2021
-    Updated Nov 5, 2022
-    See end of file for terms of use.
-    --------------------------------------------
+----------------------------------------------------------------------------------------------------
+    Filename:       MMA8452Q-AutoSleepDemo.spin
+    Description:    Demo of the MMA8452Q driver
+        * Auto-sleep functionality
+    Author:         Jesse Burt
+    Started:        Nov 6, 2021
+    Updated:        Jul 4, 2024
+    Copyright (c) 2024 - See end of file for terms of use.
+----------------------------------------------------------------------------------------------------
 }
+
+' Uncomment the two lines below to use the bytecode-based I2C engine
+'#define MMA8452Q_I2C_BC
+'#pragma exportdef(MMA8452Q_I2C_BC)
 
 CON
 
-    _clkmode    = cfg#_clkmode
-    _xinfreq    = cfg#_xinfreq
+    _clkmode    = cfg._clkmode
+    _xinfreq    = cfg._xinfreq
 
 ' -- User-modifiable constants
-    LED         = cfg#LED1
+    LED         = cfg.LED1
     SER_BAUD    = 115_200
 
     SCL_PIN     = 28
@@ -32,36 +35,38 @@ CON
     DAT_Y_COL   = DAT_X_COL + 15
     DAT_Z_COL   = DAT_Y_COL + 15
 
+
 OBJ
 
-    cfg     : "boardcfg.flip"
-    ser     : "com.serial.terminal.ansi"
-    time    : "time"
-    sensor  : "sensor.accel.3dof.mma8452q"
-    core    : "core.con.mma8452q"
+    cfg:    "boardcfg.flip"
+    time:   "time"
+    ser:    "com.serial.terminal.ansi"
+    sensor: "sensor.accel.3dof.mma8452q"
+
 
 VAR
 
     long _isr_stack[50]                         ' stack for ISR core
     long _intflag                               ' interrupt flag
 
-PUB main{} | intsource, temp, sysmod
 
-    setup{}
-    sensor.preset_active{}                      ' default settings, but enable
+PUB main() | intsource, temp, sysmod
+
+    setup()
+    sensor.preset_active()                      ' default settings, but enable
                                                 ' sensor power, and set
                                                 ' scale factors
 
     sensor.auto_sleep_ena(true)                 ' enable auto-sleep
-    sensor.accel_sleep_pwr_mode(sensor#LOPWR)   ' lo-power mode when sleeping
-    sensor.accel_pwr_mode(sensor#HIGHRES)       ' high-res mode when awake
+    sensor.accel_sleep_pwr_mode(sensor.LOPWR)   ' lo-power mode when sleeping
+    sensor.accel_pwr_mode(sensor.HIGHRES)       ' high-res mode when awake
     sensor.trans_axis_ena(%011)                 ' transient detection on X, Y
     sensor.trans_thresh(0_252000)               ' set thresh to 0.252g (0..8g)
     sensor.trans_set_cnt(0)                     ' reset counter
     sensor.inact_set_time(5_120)                ' inactivity timeout ~5sec
-    sensor.inact_int(sensor#WAKE_TRANS)         ' wake on transient accel
-    sensor.accel_int_mask(sensor#INT_AUTOSLPWAKE | sensor#INT_TRANS)
-    sensor.accel_int_routing(sensor#INT_AUTOSLPWAKE | sensor#INT_TRANS)
+    sensor.inact_int(sensor.WAKE_TRANS)         ' wake on transient accel
+    sensor.accel_int_mask(sensor.INT_AUTOSLPWAKE | sensor.INT_TRANS)
+    sensor.accel_int_routing(sensor.INT_AUTOSLPWAKE | sensor.INT_TRANS)
     sensor.accel_data_rate(100)                 ' 100Hz ODR when active
     sensor.auto_sleep_data_rate(6)              ' 6Hz ODR when sleeping
     dira[LED] := 1
@@ -75,22 +80,23 @@ PUB main{} | intsource, temp, sysmod
     ' When the sensor goes to sleep, it should turn off.
     repeat
         ser.pos_xy(0, 3)
-        show_accel_data{}                       ' show accel data
-        if (_intflag)                           ' interrupt triggered
-            intsource := sensor.accel_int{}
-            if (intsource & sensor#INT_TRANS)   ' transient acceleration event
-                temp := sensor.trans_interrupt{}' clear the trans. interrupt
-            if (intsource & sensor#INT_AUTOSLPWAKE)
-                sysmod := sensor.sys_mode{}
-                if (sysmod & sensor#SLEEP)      ' op. mode is sleep,
+        show_accel_data()                       ' show accel data
+        if ( _intflag )                         ' interrupt triggered
+            intsource := sensor.accel_int()
+            if ( intsource & sensor.INT_TRANS ) ' transient acceleration event
+                temp := sensor.trans_interrupt()' clear the trans. interrupt
+            if ( intsource & sensor.INT_AUTOSLPWAKE )
+                sysmod := sensor.sys_mode()
+                if ( sysmod & sensor.SLEEP )    ' op. mode is sleep,
                     outa[LED] := 0              '   so turn LED off
-                elseif (sysmod & sensor#ACTIVE) ' else active,
+                elseif (sysmod & sensor.ACTIVE) ' else active,
                     outa[LED] := 1              '   turn it on
 
-        if (ser.rx_check{} == "c")              ' press the 'c' key in the demo
-            cal_accel{}                         ' to calibrate sensor offsets
+        if ( ser.rx_check() == "c" )            ' press the 'c' key in the demo
+            cal_accel()                         ' to calibrate sensor offsets
 
-PRI cog_isr{}
+
+PRI cog_isr()
 ' Interrupt service routine
     dira[INT1] := 0                             ' INT1 as input
     repeat
@@ -99,25 +105,27 @@ PRI cog_isr{}
         waitpeq(|< INT1, |< INT1, 0)            ' now wait for it to clear
         _intflag := 0                           '   clear flag
 
-PUB setup{}
+
+PUB setup()
 
     ser.start(SER_BAUD)
     time.msleep(30)
-    ser.clear{}
-    ser.strln(string("Serial terminal started"))
-    if sensor.startx(SCL_PIN, SDA_PIN, I2C_FREQ, ADDR_BITS)
-        ser.strln(string("MMA8452Q driver started (I2C)"))
+    ser.clear()
+    ser.strln(@"Serial terminal started")
+    if ( sensor.startx(SCL_PIN, SDA_PIN, I2C_FREQ, ADDR_BITS) )
+        ser.strln(@"MMA8452Q driver started (I2C)")
     else
-        ser.strln(string("MMA8452Q driver failed to start - halting"))
+        ser.strln(@"MMA8452Q driver failed to start - halting")
         repeat
 
-    cognew(cog_isr{}, @_isr_stack)                    ' start ISR in another core
+    cognew(cog_isr(), @_isr_stack)              ' start ISR in another core
 
 #include "acceldemo.common.spinh"
 
+
 DAT
 {
-Copyright 2022 Jesse Burt
+Copyright 2024 Jesse Burt
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
 associated documentation files (the "Software"), to deal in the Software without restriction,

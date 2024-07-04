@@ -1,14 +1,13 @@
 {
-    --------------------------------------------
-    Filename: MMA8452Q-Orientation-Demo.spin2
-    Author: Jesse Burt
-    Description: Demo of the MMA8452Q driver's portrait/landscape orientation
-        detection functionality (P2 version)
-    Copyright (c) 2022
-    Started Nov 9, 2021
-    Updated Nov 5, 2022
-    See end of file for terms of use.
-    --------------------------------------------
+----------------------------------------------------------------------------------------------------
+    Filename:       MMA8452Q-Orientation-Demo.spin2
+    Description:    Demo of the MMA8452Q driver
+        * portrait/landscape orientation detection functionality
+    Author:         Jesse Burt
+    Started:        Nov 9, 2021
+    Updated:        Jul 4, 2024
+    Copyright (c) 2024 - See end of file for terms of use.
+----------------------------------------------------------------------------------------------------
 }
 
 CON
@@ -26,11 +25,13 @@ CON
     ADDR_BITS   = 0                             ' 0, 1
 ' --
 
+
 OBJ
 
-    cfg     : "boardcfg.p2eval"
-    ser     : "com.serial.terminal.ansi"
-    accel   : "sensor.accel.3dof.mma8452q"
+    cfg:    "boardcfg.p2eval"
+    ser:    "com.serial.terminal.ansi"
+    accel:  "sensor.accel.3dof.mma8452q"
+
 
 PUB main()
 
@@ -63,8 +64,9 @@ PUB main()
             other:
         ser.clear_line()
 
-        if (ser.rx_check() == "c")              ' press the 'c' key in the demo
+        if ( ser.rx_check() == "c" )            ' press the 'c' key in the demo
             calibrate()                         ' to calibrate sensor offsets
+
 
 PUB calibrate()
 
@@ -74,13 +76,15 @@ PUB calibrate()
     ser.pos_x(0)
     ser.clear_line()
 
+
 PUB setup()
 
     ser.start(SER_BAUD)
-    waitms(30)
+
     ser.clear()
     ser.strln(@"Serial terminal started")
-    if accel.startx(SCL_PIN, SDA_PIN, I2C_FREQ, ADDR_BITS)
+
+    if ( accel.startx(SCL_PIN, SDA_PIN, I2C_FREQ, ADDR_BITS) )
         ser.strln(@"MMA8452Q driver started (I2C)")
     else
         ser.strln(@"MMA8452Q driver failed to start - halting")
@@ -88,7 +92,7 @@ PUB setup()
 
 DAT
 {
-Copyright 2022 Jesse Burt
+Copyright 2024 Jesse Burt
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
 associated documentation files (the "Software"), to deal in the Software without restriction,

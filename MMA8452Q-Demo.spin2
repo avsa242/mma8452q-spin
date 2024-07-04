@@ -1,17 +1,13 @@
 {
-    --------------------------------------------
-    Filename: MMA8452Q-Demo.spin
-    Author: Jesse Burt
-    Description: MMA8452Q driver demo
+----------------------------------------------------------------------------------------------------
+    Filename:       MMA8452Q-Demo.spin2
+    Description:    Demo of the MMA8452Q driver
         * 3DoF data output
-    Copyright (c) 2022
-    Started Aug 12, 2017
-    Updated Nov 26, 2022
-    See end of file for terms of use.
-    --------------------------------------------
-
-    Build-time symbols supported by driver:
-        N/A
+    Author:         Jesse Burt
+    Started:        Nov 9, 2021
+    Updated:        Jul 4, 2024
+    Copyright (c) 2024 - See end of file for terms of use.
+----------------------------------------------------------------------------------------------------
 }
 
 CON
@@ -31,22 +27,19 @@ CON
 
 OBJ
 
-    cfg: "boardcfg.p2eval"
+    cfg:    "boardcfg.p2eval"
+    ser:    "com.serial.terminal.ansi"
     sensor: "sensor.accel.3dof.mma8452q"
-    ser: "com.serial.terminal.ansi"
+
 
 PUB setup()
 
     ser.start(SER_BAUD)
-    waitms(10)
+
     ser.clear()
     ser.strln(@"Serial terminal started")
 
-#ifdef MMA8452Q_SPI
-    if (sensor.startx(CS_PIN, SCK_PIN, MOSI_PIN, MISO_PIN))
-#else
-    if (sensor.startx(SCL_PIN, SDA_PIN, I2C_FREQ, ADDR_BITS))
-#endif
+    if ( sensor.startx(SCL_PIN, SDA_PIN, I2C_FREQ, ADDR_BITS) )
         ser.strln(@"MMA8452Q driver started")
     else
         ser.strln(@"MMA8452Q driver failed to start - halting")
@@ -57,14 +50,14 @@ PUB setup()
     repeat
         ser.pos_xy(0, 3)
         show_accel_data()
-        if (ser.rx_check() == "c")
+        if ( ser.rx_check() == "c" )
             cal_accel()
 
 #include "acceldemo.common.spin2h"                ' code common to all IMU demos
 
 DAT
 {
-Copyright 2022 Jesse Burt
+Copyright 2024 Jesse Burt
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
 associated documentation files (the "Software"), to deal in the Software without restriction,
